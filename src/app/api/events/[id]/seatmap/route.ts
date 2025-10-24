@@ -8,7 +8,7 @@ const generateMockSeats = (eventId: string) => {
     const isVip = row === "VIP";
     const isFanPit = row.startsWith("Fan Pit");
     const category = isVip ? "vip" : isFanPit ? "fan-pit" : "general";
-    const price = isVip ? 250 : isFanPit ? 180 : 120;
+    const price = isVip ? 20800 : isFanPit ? 15000 : 10000;
 
     return Array.from({ length: 10 }, (_, i) => ({
       id: `${row.toLowerCase().replace(' ', '-')}-${i}`,

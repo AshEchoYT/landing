@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Crown, Zap, Users, Building2 } from "lucide-react";
+import { formatPrice } from "../utils/formatters";
 
 interface Seat {
   id: string;
@@ -22,7 +23,7 @@ export function SeatMap({ eventId, selectedSeats: externalSelectedSeats = [], on
   const [internalSelectedSeats, setInternalSelectedSeats] = useState<string[]>([]);
 
   // Use external selected seats if provided, otherwise use internal state
-  const selectedSeats = externalSelectedSeats.length > 0 
+  const selectedSeatIds = externalSelectedSeats.length > 0 
     ? externalSelectedSeats.map(s => s.id) 
     : internalSelectedSeats;
 
@@ -33,7 +34,7 @@ export function SeatMap({ eventId, selectedSeats: externalSelectedSeats = [], on
     const isVip = row === "VIP";
     const isFanPit = row.startsWith("Fan Pit");
     const category = isVip ? "vip" : isFanPit ? "fan-pit" : "general";
-    const price = isVip ? 250 : isFanPit ? 180 : 120;
+    const price = isVip ? 20800 : isFanPit ? 15000 : 10000;
 
     return Array.from({ length: 10 }, (_, i) => {
       const rand = Math.random();
@@ -84,7 +85,7 @@ export function SeatMap({ eventId, selectedSeats: externalSelectedSeats = [], on
 
   const getSeatColor = (seat: Seat, isSelected: boolean) => {
     if (isSelected) return "bg-gradient-to-br from-green-400 to-green-500 border-green-400 text-black scale-110 shadow-lg shadow-green-500/50";
-    if (seat.status === "sold") return "bg-gray-600 border-gray-500 text-gray-400 cursor-not-allowed";
+    if (seat.status === "sold") return "bg-red-500/80 border-red-500/60 text-white cursor-not-allowed";
     if (seat.status === "reserved") return "bg-yellow-500/30 border-yellow-500/50 text-yellow-400 animate-pulse";
 
     const categoryColors = {
@@ -97,13 +98,15 @@ export function SeatMap({ eventId, selectedSeats: externalSelectedSeats = [], on
     return categoryColors[seat.category];
   };
 
-  const totalPrice = selectedSeats.reduce((sum, seatId) => {
+  const totalPrice = selectedSeatIds.reduce((sum: number, seatId: string) => {
     const seat = seats.find(s => s.id === seatId);
     return sum + (seat?.price || 0);
   }, 0);
 
   return (
-    <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-2xl p-6 border border-green-500/20 shadow-2xl">
+    <div className="w-full max-w-full overflow-x-auto">
+      <div className="transform scale-75 sm:scale-90 md:scale-95 lg:scale-100 origin-top-left">
+        <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-2xl p-6 border border-green-500/20 shadow-2xl min-w-max">
       {/* Neon Border Effect */}
       <div className="absolute inset-0 bg-gradient-to-r from-green-400/20 via-cyan-400/20 to-green-400/20 rounded-2xl blur-xl -z-10"></div>
       <div className="mb-6">
@@ -133,13 +136,13 @@ export function SeatMap({ eventId, selectedSeats: externalSelectedSeats = [], on
               <div className="w-16 text-sm font-medium text-gray-300 truncate">{row}</div>
               <div className="flex-1 grid grid-cols-10 gap-2">
                 {rowSeats.map(seat => {
-                  const isSelected = selectedSeats.includes(seat.id);
+                  const isSelected = selectedSeatIds.includes(seat.id);
                   return (
                     <button
                       key={seat.id}
                       onClick={() => toggleSeat(seat.id)}
                       className={`
-                        w-10 h-10 rounded-md border-2 transition-all duration-200 text-xs font-medium
+                        w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 rounded border-2 transition-all duration-200 text-xs font-medium
                         ${getSeatColor(seat, isSelected)}
                         ${seat.status !== "sold" ? "hover:scale-105 hover:shadow-lg" : ""}
                       `}
@@ -157,21 +160,23 @@ export function SeatMap({ eventId, selectedSeats: externalSelectedSeats = [], on
         })}
       </div>
 
-      {selectedSeats.length > 0 && (
-        <div className="flex items-center justify-between p-4 bg-gray-800/50 border border-green-500/20 rounded-lg">
-          <div>
-            <div className="text-sm text-gray-300">
-              {selectedSeats.length} seat{selectedSeats.length > 1 ? 's' : ''} selected
+      {selectedSeatIds.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between p-2 sm:p-3 md:p-4 bg-gray-800/50 border border-green-500/20 rounded-lg gap-2 sm:gap-3 md:gap-0">
+          <div className="text-center sm:text-left">
+            <div className="text-xs sm:text-sm text-gray-300">
+              {selectedSeatIds.length} seat{selectedSeatIds.length > 1 ? 's' : ''} selected
             </div>
-            <div className="text-2xl font-bold text-green-400" data-testid="text-total-price">
-              ${totalPrice}
+            <div className="text-lg sm:text-xl md:text-2xl font-bold text-green-400" data-testid="text-total-price">
+              {formatPrice(totalPrice)}
             </div>
           </div>
-          <Button className="bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-400 hover:to-cyan-400 text-black font-semibold shadow-lg shadow-green-500/30" data-testid="button-proceed-checkout">
+          <Button className="w-full sm:w-auto bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-400 hover:to-cyan-400 text-black font-semibold shadow-lg shadow-green-500/30 text-sm sm:text-base px-3 sm:px-4 py-2 sm:py-2" data-testid="button-proceed-checkout">
             Proceed to Checkout
           </Button>
         </div>
       )}
+        </div>
+      </div>
     </div>
   );
 }

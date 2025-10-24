@@ -1,19 +1,58 @@
 import React, { useState } from 'react';
-import { useStripe, useElements, PaymentElement } from '@stripe/react-stripe-js';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CreditCard, AlertCircle, CheckCircle2, Zap } from 'lucide-react';
+import { ticketsApi } from '../api/ticketsApi';
+import { useAuth } from '../context/AuthContext';
+import { useSeatStore } from '../store/useSeatStore';
+import { CreditCard, AlertCircle, CheckCircle2, Zap, User, Calendar, MapPin } from 'lucide-react';
 
 const CheckoutForm = () => {
-  const stripe = useStripe();
-  const elements = useElements();
+  const router = useRouter();
+  const { user } = useAuth();
+  const { selectedSeats, reservationId, clearSeats, clearReservation } = useSeatStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
 
+  // Form state
+  const [cardDetails, setCardDetails] = useState({
+    number: '',
+    expiry: '',
+    cvv: '',
+    name: '',
+  });
+
+  const handleInputChange = (field: string, value: string) => {
+    setCardDetails(prev => ({ ...prev, [field]: value }));
+  };
+
+  const validateForm = () => {
+    if (!cardDetails.number || cardDetails.number.replace(/\s/g, '').length < 16) {
+      return 'Please enter a valid card number';
+    }
+    if (!cardDetails.expiry || !/^\d{2}\/\d{2}$/.test(cardDetails.expiry)) {
+      return 'Please enter a valid expiry date (MM/YY)';
+    }
+    if (!cardDetails.cvv || cardDetails.cvv.length < 3) {
+      return 'Please enter a valid CVV';
+    }
+    if (!cardDetails.name.trim()) {
+      return 'Please enter the cardholder name';
+    }
+    return null;
+  };
+
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!stripe || !elements) {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
+    if (!reservationId || !user) {
+      setError('Missing reservation or user information');
       return;
     }
 
@@ -22,63 +61,124 @@ const CheckoutForm = () => {
     setPaymentStatus('processing');
 
     try {
-      const { error: submitError } = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          return_url: `${window.location.origin}/tickets`,
-        },
+      // Simulate payment processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      // Create tickets after successful payment
+      const tickets = await ticketsApi.createTickets(user.id, {
+        reservationId,
+        eventId: 'event_123', // This should come from the reservation
+        seatIds: selectedSeats.map(seat => seat.id),
       });
 
-      if (submitError) {
-        setError(submitError.message || 'Payment failed');
-        setPaymentStatus('error');
-      } else {
-        setPaymentStatus('success');
-      }
+      setPaymentStatus('success');
+
+      // Clear seat selection and reservation
+      clearSeats();
+      clearReservation();
+
+      // Redirect to tickets page after a short delay
+      setTimeout(() => {
+        router.push('/tickets');
+      }, 2000);
+
     } catch (err) {
-      setError('An unexpected error occurred');
+      console.error('Payment failed:', err);
+      setError('Payment failed. Please try again.');
       setPaymentStatus('error');
     } finally {
       setLoading(false);
     }
   };
 
+  const formatCardNumber = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    const matches = v.match(/\d{4,16}/g);
+    const match = matches && matches[0] || '';
+    const parts = [];
+    for (let i = 0, len = match.length; i < len; i += 4) {
+      parts.push(match.substring(i, i + 4));
+    }
+    if (parts.length) {
+      return parts.join(' ');
+    } else {
+      return v;
+    }
+  };
+
+  const formatExpiry = (value: string) => {
+    const v = value.replace(/\s+/g, '').replace(/[^0-9]/gi, '');
+    if (v.length >= 2) {
+      return v.substring(0, 2) + '/' + v.substring(2, 4);
+    }
+    return v;
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Payment Element Container */}
+      {/* Card Details */}
       <motion.div
-        className="relative"
+        className="space-y-4"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
       >
-        <label className="block text-white mb-3 text-lg font-semibold flex items-center space-x-2">
+        <div className="flex items-center space-x-2 mb-4">
           <CreditCard className="w-5 h-5 text-cyan-400" />
-          <span>Card Information</span>
-        </label>
+          <span className="text-white text-lg font-semibold">Card Details</span>
+        </div>
 
-        <div className="relative bg-gradient-to-br from-gray-700/50 to-gray-800/50 rounded-xl p-4 border border-gray-600/50 backdrop-blur-sm">
-          {/* Animated Border */}
-          <motion.div
-            className="absolute inset-0 rounded-xl bg-gradient-to-r from-cyan-500/20 via-green-500/20 to-cyan-500/20"
-            animate={{
-              boxShadow: [
-                '0 0 0 rgba(6, 182, 212, 0)',
-                '0 0 20px rgba(6, 182, 212, 0.3)',
-                '0 0 0 rgba(6, 182, 212, 0)'
-              ]
-            }}
-            transition={{ duration: 2, repeat: Infinity }}
+        {/* Card Number */}
+        <div>
+          <label className="block text-white mb-2">Card Number</label>
+          <input
+            type="text"
+            placeholder="1234 5678 9012 3456"
+            value={cardDetails.number}
+            onChange={(e) => handleInputChange('number', formatCardNumber(e.target.value))}
+            maxLength={19}
+            className="w-full px-4 py-3 bg-gray-700/50 text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
           />
+        </div>
 
-          <div className="relative">
-            <PaymentElement
-              options={{
-                layout: 'tabs'
-              }}
-              className="stripe-payment-element"
+        <div className="grid grid-cols-2 gap-4">
+          {/* Expiry Date */}
+          <div>
+            <label className="block text-white mb-2">Expiry Date</label>
+            <input
+              type="text"
+              placeholder="MM/YY"
+              value={cardDetails.expiry}
+              onChange={(e) => handleInputChange('expiry', formatExpiry(e.target.value))}
+              maxLength={5}
+              className="w-full px-4 py-3 bg-gray-700/50 text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
             />
           </div>
+
+          {/* CVV */}
+          <div>
+            <label className="block text-white mb-2">CVV</label>
+            <input
+              type="text"
+              placeholder="123"
+              value={cardDetails.cvv}
+              onChange={(e) => handleInputChange('cvv', e.target.value.replace(/[^0-9]/g, '').substring(0, 4))}
+              maxLength={4}
+              className="w-full px-4 py-3 bg-gray-700/50 text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
+            />
+          </div>
+        </div>
+
+        {/* Cardholder Name */}
+        <div>
+          <label className="block text-white mb-2">Cardholder Name</label>
+          <input
+            type="text"
+            placeholder="John Doe"
+            value={cardDetails.name}
+            onChange={(e) => handleInputChange('name', e.target.value)}
+            className="w-full px-4 py-3 bg-gray-700/50 text-white rounded-xl border border-gray-600/50 focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-transparent transition-all duration-300"
+          />
         </div>
       </motion.div>
 
@@ -120,14 +220,14 @@ const CheckoutForm = () => {
           transition={{ duration: 0.3 }}
         >
           <CheckCircle2 className="w-5 h-5 text-green-400" />
-          <span className="text-green-400 font-semibold">Payment successful! Redirecting...</span>
+          <span className="text-green-400 font-semibold">Payment successful! Creating tickets...</span>
         </motion.div>
       )}
 
       {/* Submit Button */}
       <motion.button
         type="submit"
-        disabled={!stripe || loading || paymentStatus === 'success'}
+        disabled={loading || paymentStatus === 'success'}
         className="group relative w-full bg-gradient-to-r from-green-500 via-green-400 to-cyan-500 text-black py-4 rounded-xl font-bold text-lg shadow-2xl hover:shadow-green-500/50 transition-all duration-300 overflow-hidden disabled:opacity-50 disabled:cursor-not-allowed"
         whileHover={{ scale: 1.02, y: -2 }}
         whileTap={{ scale: 0.98 }}
@@ -168,7 +268,7 @@ const CheckoutForm = () => {
         transition={{ delay: 0.6 }}
       >
         <p>Your payment information is secure and encrypted</p>
-        <p className="mt-1">Powered by Stripe</p>
+        <p className="mt-1">This is a simulation - no real payment will be processed</p>
       </motion.div>
     </form>
   );

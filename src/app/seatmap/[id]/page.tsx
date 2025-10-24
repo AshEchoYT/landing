@@ -49,6 +49,13 @@ const SeatSelectionPage = () => {
     fetchSeatMap();
   }, [id]);
 
+  // Sync global store with local state on mount
+  useEffect(() => {
+    if (selectedSeats.length > 0) {
+      setLocalSelectedSeats(selectedSeats);
+    }
+  }, [selectedSeats]);
+
   // Helper function to assign categories based on row
   const getCategoryFromRow = (row: string) => {
     const rowNum = parseInt(row);
@@ -192,28 +199,28 @@ const SeatSelectionPage = () => {
                             <Crown className="w-4 h-4 text-purple-400" />
                             <div>
                               <span className="text-purple-400 font-medium">VIP</span>
-                              <p className="text-xs text-gray-400">$250</p>
+                              <p className="text-xs text-gray-400">{formatPrice(20800)}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2 p-2 bg-cyan-500/10 rounded border border-cyan-500/20">
                             <Zap className="w-4 h-4 text-cyan-400" />
                             <div>
                               <span className="text-cyan-400 font-medium">Fan Pit</span>
-                              <p className="text-xs text-gray-400">$180</p>
+                              <p className="text-xs text-gray-400">{formatPrice(15000)}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2 p-2 bg-green-500/10 rounded border border-green-500/20">
                             <Ticket className="w-4 h-4 text-green-400" />
                             <div>
                               <span className="text-green-400 font-medium">General</span>
-                              <p className="text-xs text-gray-400">$120</p>
+                              <p className="text-xs text-gray-400">{formatPrice(10000)}</p>
                             </div>
                           </div>
                           <div className="flex items-center space-x-2 p-2 bg-indigo-500/10 rounded border border-indigo-500/20">
                             <ArrowUpCircle className="w-4 h-4 text-indigo-400" />
                             <div>
                               <span className="text-indigo-400 font-medium">Balcony</span>
-                              <p className="text-xs text-gray-400">$150</p>
+                              <p className="text-xs text-gray-400">{formatPrice(12500)}</p>
                             </div>
                           </div>
                         </div>
@@ -224,7 +231,14 @@ const SeatSelectionPage = () => {
 
                 <SeatMap
                   eventId={id}
-                  onSeatSelect={setLocalSelectedSeats}
+                  selectedSeats={selectedSeats}
+                  onSeatSelect={(seats) => {
+                    // Update local state
+                    setLocalSelectedSeats(seats);
+                    // Update global store
+                    clearSeats();
+                    seats.forEach(seat => addSeat(seat));
+                  }}
                 />
               </div>
             </motion.div>
@@ -314,6 +328,11 @@ const SeatSelectionPage = () => {
                                 seatIds: localSelectedSeats.map(seat => seat.id),
                               });
                               setReservation(reservation.id, new Date(reservation.expiresAt));
+                              
+                              // Sync selected seats to global store
+                              clearSeats(); // Clear any existing seats first
+                              localSelectedSeats.forEach(seat => addSeat(seat));
+                              
                               router.push('/checkout');
                             } catch (error) {
                               console.error('Error creating reservation:', error);

@@ -178,7 +178,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
               initial={{ scale: 0, rotate: -45 }}
               animate={{ scale: 1, rotate: 0 }}
               transition={{
-                delay: 0.6 + index * 0.1,
+                delay: 0.6,
                 type: 'spring',
                 stiffness: 200
               }}

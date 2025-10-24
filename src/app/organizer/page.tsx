@@ -71,7 +71,7 @@ const OrganizerDashboard = () => {
                     </div>
                     <div className="bg-gray-700 p-6 rounded-lg">
                       <h3 className="text-lg font-semibold text-green-400">Revenue</h3>
-                      <p className="text-3xl font-bold text-white">$12,345</p>
+                      <p className="text-3xl font-bold text-white">₹10,25,000</p>
                     </div>
                   </div>
                 </motion.div>

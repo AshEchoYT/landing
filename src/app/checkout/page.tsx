@@ -1,11 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import { paymentsApi } from '../../api/paymentsApi';
 import { useSeatStore } from '../../store/useSeatStore';
 import { formatPrice } from '../../utils/formatters';
 import CheckoutForm from '../../components/CheckoutForm';
@@ -13,41 +10,11 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { CreditCard, Shield, Lock, CheckCircle, ArrowLeft } from 'lucide-react';
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-
 const CheckoutPage = () => {
   const router = useRouter();
-  const { selectedSeats, reservationId } = useSeatStore();
-  const [clientSecret, setClientSecret] = useState('');
-
-  React.useEffect(() => {
-    const createPaymentIntent = async () => {
-      if (reservationId) {
-        try {
-          const response = await paymentsApi.createIntent({
-            reservationId,
-            amount: selectedSeats.reduce((sum, seat) => sum + seat.price, 0) * 100, // Convert to cents
-          });
-          setClientSecret(response.clientSecret);
-        } catch (error) {
-          console.error('Error creating payment intent:', error);
-        }
-      }
-    };
-
-    createPaymentIntent();
-  }, [reservationId, selectedSeats]);
+  const { selectedSeats } = useSeatStore();
 
   const totalPrice = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
-
-  const appearance = {
-    theme: 'night' as const,
-  };
-
-  const options = {
-    clientSecret,
-    appearance,
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-900 to-black relative overflow-hidden">
@@ -106,7 +73,7 @@ const CheckoutPage = () => {
                           </div>
                           <div>
                             <p className="text-white font-semibold">Seat {seat.row}{seat.number}</p>
-                            <p className="text-gray-400 text-sm">Premium Seating</p>
+                            <p className="text-gray-400 text-sm capitalize">{seat.category.replace('-', ' ')}</p>
                           </div>
                         </div>
                         <span className="text-green-400 font-bold text-lg">{formatPrice(seat.price)}</span>
@@ -163,20 +130,7 @@ const CheckoutPage = () => {
                     <span>Payment Details</span>
                   </h2>
 
-                  {clientSecret ? (
-                    <Elements options={options} stripe={stripePromise}>
-                      <CheckoutForm />
-                    </Elements>
-                  ) : (
-                    <div className="flex items-center justify-center py-12">
-                      <motion.div
-                        className="w-8 h-8 border-2 border-green-400 border-t-transparent rounded-full"
-                        animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                      />
-                      <span className="ml-3 text-gray-400">Preparing payment...</span>
-                    </div>
-                  )}
+                  <CheckoutForm />
                 </div>
               </div>
 
