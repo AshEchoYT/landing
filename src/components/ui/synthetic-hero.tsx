@@ -83,7 +83,7 @@ const fragmentShader = `
 
       vec2 i = p;
       float c = 0.0;
-      float rot = r + u_time + p.x * 0.100;
+      float rot = r + u_time; // Removed p.x * 0.100 to make it non-interactive
       for (float n = 0.0; n < 4.0; n++) {
           float rr = r + 0.15 * sin(u_time*0.7 + float(n) + r*2.0);
           p *= mat2(
@@ -254,6 +254,9 @@ const SyntheticHero = ({
 					/>
 				</Canvas>
 			</div>
+
+			{/* Gradient overlay for smooth blending */}
+			<div className="absolute inset-0 z-5 bg-gradient-to-b from-transparent via-gray-900/20 to-gray-900/70 h-[200vh] top-0 pointer-events-none"></div>
 
 			<div className="relative z-10 flex flex-col items-center text-center px-6">
 				<div ref={badgeWrapperRef}>
