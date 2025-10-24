@@ -113,7 +113,9 @@ const EventsList = () => {
                 whileHover={{ scale: 1.02 }}
                 whileFocus={{ scale: 1.02 }}
               >
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <div className="absolute left-4 top-1/2 transform -translate-y-1/2 z-10">
+                  <Search className="w-5 h-5 text-gray-400" />
+                </div>
                 <input
                   type="text"
                   placeholder="Search events, artists, venues..."

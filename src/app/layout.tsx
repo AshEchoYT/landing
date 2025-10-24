@@ -17,6 +17,9 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Events.Echo - Experience the Future of Live Events",
   description: "Discover, book, and attend concerts and experiences reimagined.",
+  icons: {
+    icon: "/favicon.svg",
+  },
 };
 
 export default function RootLayout({

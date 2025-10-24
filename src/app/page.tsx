@@ -6,7 +6,6 @@ import SyntheticHero from "@/components/ui/synthetic-hero";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import AnimatedButton from "@/components/AnimatedButton";
-import ParticleBackground from "@/components/ui/particle-background";
 import { StatsSection, FeaturesSection, CTASection } from "@/components/sections";
 
 const FloatingElement = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => (
@@ -42,9 +41,6 @@ export default function LandingPage() {
 
   return (
     <div className="w-screen min-h-screen flex flex-col relative overflow-hidden">
-
-      {/* Animated Particle Background */}
-      <ParticleBackground />
 
       {/* Mouse Follower */}
       <motion.div
