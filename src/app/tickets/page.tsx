@@ -2,44 +2,29 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ticketsApi } from '../../api/ticketsApi';
+import { ticketsApi, Ticket } from '../../api/ticketsApi';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate, formatTime } from '../../utils/formatters';
 import Loader from '../../components/Loader';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
-import { Download, QrCode, Calendar, MapPin, Ticket, Star, Zap, CheckCircle } from 'lucide-react';
-
-interface Ticket {
-  id: string;
-  event: {
-    title: string;
-    date: string;
-    venue: string;
-    image: string;
-  };
-  seat: {
-    row: string;
-    number: number;
-  };
-  qrCode: string;
-}
+import { Download, QrCode, Calendar, MapPin, Ticket as TicketIcon, Star, Zap, CheckCircle } from 'lucide-react';
 
 const MyTicketsPage = () => {
-  const { user } = useAuth();
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchTickets = async () => {
-      if (user?.id) {
+      if (user?._id) {
         try {
           setLoading(true);
           setError(null);
-          const data = await ticketsApi.getUserTickets(user.id);
-          setTickets(data);
+          const data = await ticketsApi.getUserTickets(user._id);
+          setTickets(data.data.tickets);
         } catch (error) {
           console.error('Error fetching tickets:', error);
           setError('Failed to load your tickets. Please try again.');
@@ -55,12 +40,12 @@ const MyTicketsPage = () => {
   }, [user]);
 
   const handleDownload = async (ticket: Ticket) => {
-    setDownloading(ticket.id);
+    setDownloading(ticket._id);
     try {
       // Simulate download process
       await new Promise(resolve => setTimeout(resolve, 1500));
       // In a real app, this would trigger the actual download
-      console.log('Downloading ticket:', ticket.id);
+      console.log('Downloading ticket:', ticket._id);
     } catch (error) {
       console.error('Error downloading ticket:', error);
     } finally {
@@ -156,7 +141,7 @@ const MyTicketsPage = () => {
               >
                 {tickets.map((ticket, index) => (
                   <motion.div
-                    key={ticket.id}
+                    key={ticket._id}
                     className="relative group"
                     initial={{ opacity: 0, y: 30, scale: 0.9 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -171,8 +156,8 @@ const MyTicketsPage = () => {
                         {/* Event Image */}
                         <div className="relative h-48 overflow-hidden">
                           <img
-                            src={ticket.event.image}
-                            alt={ticket.event.title}
+                            src={typeof ticket.event === 'object' && ticket.event ? '/api/placeholder/400/200' : '/api/placeholder/400/200'}
+                            alt={typeof ticket.event === 'object' && ticket.event ? ticket.event.title : 'Event'}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
@@ -200,24 +185,23 @@ const MyTicketsPage = () => {
 
                         {/* Ticket Content */}
                         <div className="p-6">
-                          {/* Event Title */}
                           <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-green-400 transition-colors duration-300">
-                            {ticket.event.title}
+                            {typeof ticket.event === 'object' && ticket.event ? ticket.event.title : 'Event Title'}
                           </h3>
 
                           {/* Event Details */}
                           <div className="space-y-3 mb-6">
                             <div className="flex items-center space-x-3 text-gray-300">
                               <Calendar className="w-5 h-5 text-green-400" />
-                              <span>{formatDate(ticket.event.date)} at {formatTime(ticket.event.date)}</span>
+                              <span>{typeof ticket.event === 'object' ? formatDate(ticket.event.date) : 'Date TBA'} at {typeof ticket.event === 'object' ? formatTime(ticket.event.date) : 'Time TBA'}</span>
                             </div>
                             <div className="flex items-center space-x-3 text-gray-300">
                               <MapPin className="w-5 h-5 text-cyan-400" />
-                              <span>{ticket.event.venue}</span>
+                              <span>{typeof ticket.event === 'object' && typeof ticket.event.venue === 'object' ? ticket.event.venue.name : 'Venue TBA'}</span>
                             </div>
                             <div className="flex items-center space-x-3 text-gray-300">
-                              <Ticket className="w-5 h-5 text-purple-400" />
-                              <span>Seat {ticket.seat.row}{ticket.seat.number}</span>
+                              <TicketIcon className="w-5 h-5 text-purple-400" />
+                              <span>Seat {ticket.seatNo}</span>
                             </div>
                           </div>
 
@@ -258,14 +242,14 @@ const MyTicketsPage = () => {
                           {/* Download Button */}
                           <motion.button
                             onClick={() => handleDownload(ticket)}
-                            disabled={downloading === ticket.id}
+                            disabled={downloading === ticket._id}
                             className="group/btn relative w-full bg-gradient-to-r from-green-500 via-green-400 to-cyan-500 text-black py-3 rounded-xl font-bold shadow-lg hover:shadow-green-500/50 transition-all duration-300 overflow-hidden disabled:opacity-50"
                             whileHover={{ scale: 1.02, y: -1 }}
                             whileTap={{ scale: 0.98 }}
                           >
                             <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 opacity-0 group-hover/btn:opacity-30 transition-opacity duration-300"></div>
                             <div className="relative flex items-center justify-center space-x-3">
-                              {downloading === ticket.id ? (
+                              {downloading === ticket._id ? (
                                 <>
                                   <motion.div
                                     className="w-5 h-5 border-2 border-black border-t-transparent rounded-full"
@@ -296,7 +280,7 @@ const MyTicketsPage = () => {
                 transition={{ duration: 0.6 }}
               >
                 <div className="w-24 h-24 bg-gray-700/50 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <Ticket className="w-12 h-12 text-gray-500" />
+                  <TicketIcon className="w-12 h-12 text-gray-500" />
                 </div>
                 <h2 className="text-3xl font-bold text-white mb-4">No Tickets Yet</h2>
                 <p className="text-gray-400 text-lg mb-8 max-w-md mx-auto">

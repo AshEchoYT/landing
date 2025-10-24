@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { useSeatStore } from '../../store/useSeatStore';
 import { formatPrice } from '../../utils/formatters';
+import { convertBackendSeatToFrontend } from '../../types/seat';
 import CheckoutForm from '../../components/CheckoutForm';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
@@ -13,6 +14,11 @@ import { CreditCard, Shield, Lock, CheckCircle, ArrowLeft } from 'lucide-react';
 const CheckoutPage = () => {
   const router = useRouter();
   const { selectedSeats } = useSeatStore();
+
+  // Convert BackendSeat to Seat for display
+  const displaySeats = selectedSeats.map(seat => 
+    convertBackendSeatToFrontend(seat.seatNo, seat.category, seat.price, seat.status)
+  );
 
   const totalPrice = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
 
@@ -59,7 +65,7 @@ const CheckoutPage = () => {
 
                   {/* Selected Seats */}
                   <div className="space-y-4 mb-8">
-                    {selectedSeats.map((seat, index) => (
+                    {displaySeats.map((seat, index) => (
                       <motion.div
                         key={seat.id}
                         className="flex justify-between items-center p-4 bg-gray-700/50 rounded-xl border border-gray-600/50"

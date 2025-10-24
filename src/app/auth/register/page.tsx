@@ -10,10 +10,11 @@ import { useAuth } from '../../../context/AuthContext';
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
+    name: '',
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'attendee',
+    role: 'attendee' as 'attendee' | 'organizer',
   });
   const [error, setError] = useState('');
   const { register } = useAuth();
@@ -33,6 +34,7 @@ const RegisterPage = () => {
     }
 
     const result = await register({
+      name: formData.name,
       email: formData.email,
       password: formData.password,
       role: formData.role,
@@ -55,6 +57,18 @@ const RegisterPage = () => {
         <h1 className="text-3xl font-bold text-center mb-8 text-green-400">Sign Up</h1>
 
         <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <label className="block text-white mb-2">Name</label>
+            <input
+              type="text"
+              name="name"
+              value={formData.name}
+              onChange={handleChange}
+              className="w-full px-4 py-2 bg-gray-700 text-white rounded focus:outline-none focus:ring-2 focus:ring-green-500"
+              required
+            />
+          </div>
+
           <div>
             <label className="block text-white mb-2">Email</label>
             <input

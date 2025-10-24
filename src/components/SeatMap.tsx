@@ -3,15 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Crown, Zap, Users, Building2 } from "lucide-react";
 import { formatPrice } from "../utils/formatters";
-
-interface Seat {
-  id: string;
-  row: string;
-  number: number;
-  category: "vip" | "fan-pit" | "general" | "balcony";
-  status: "available" | "reserved" | "sold";
-  price: number;
-}
+import { Seat } from "@/types/seat";
 
 interface SeatMapProps {
   eventId: string;

@@ -25,7 +25,7 @@ const EventsList = () => {
     const fetchEvents = async () => {
       try {
         const data = await eventsApi.getEvents(filters);
-        setEvents(data);
+        setEvents(data.data.events);
       } catch (error) {
         console.error('Error fetching events:', error);
       } finally {
@@ -203,7 +203,7 @@ const EventsList = () => {
             >
               {filteredEvents.map((event, index) => (
                 <motion.div
-                  key={`${event.id}-${searchTerm}`}
+                  key={`${event._id}-${searchTerm}`}
                   initial={{ opacity: 0, y: 30, scale: 0.9 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -30, scale: 0.9 }}

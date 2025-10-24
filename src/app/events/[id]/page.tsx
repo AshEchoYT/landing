@@ -33,8 +33,8 @@ const EventDetails = () => {
         setLoading(true);
         setError(null);
         const data = await eventsApi.getEvent(id);
-        if (data) {
-          setCurrentEvent(data);
+        if (data.success && data.data.event) {
+          setCurrentEvent(data.data.event);
         } else {
           setError('Event not found');
         }
@@ -201,7 +201,7 @@ const EventDetails = () => {
                         </div>
                         <div>
                           <p className="text-cyan-400 font-semibold">Venue</p>
-                          <p className="text-white">{currentEvent.venue}</p>
+                          <p className="text-white">{currentEvent.venue?.name || 'TBA'}</p>
                         </div>
                       </div>
                     </div>
@@ -314,7 +314,7 @@ const EventDetails = () => {
               </h2>
               <div className="space-y-6">
                 <div>
-                  <h3 className="text-xl font-semibold text-white mb-2">{currentEvent.venue}</h3>
+                  <h3 className="text-xl font-semibold text-white mb-2">{currentEvent.venue?.name || 'Venue TBA'}</h3>
                   <p className="text-gray-400">Chennai, Tamil Nadu</p>
                 </div>
 

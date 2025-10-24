@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Crown, Zap, Ticket, ArrowUpCircle, Clock, ArrowRight } from 'lucide-react';
 import { seatMapApi } from '../../../api/seatMapApi';
 import { useSeatStore } from '../../../store/useSeatStore';
 import { formatCountdown, formatPrice } from '../../../utils/formatters';
@@ -11,7 +12,7 @@ import { SeatMap } from '../../../components/SeatMap';
 import Loader from '../../../components/Loader';
 import Navbar from '../../../components/Navbar';
 import Footer from '../../../components/Footer';
-import { Clock, Users, Zap, ArrowRight, CheckCircle, AlertTriangle, Crown, Ticket, ArrowUpCircle } from 'lucide-react';
+import { convertBackendSeatToFrontend } from '../../../types/seat';
 
 const SeatSelectionPage = () => {
   const params = useParams();
@@ -27,16 +28,45 @@ const SeatSelectionPage = () => {
     const fetchSeatMap = async () => {
       if (id) {
         try {
-          const data = await seatMapApi.getSeatMap(id as string);
-          // Add category information to seats if not present
-          const seatsWithCategories = data.seats?.map((seat: any) => ({
-            ...seat,
-            category: seat.category || getCategoryFromRow(seat.row)
-          })) || [];
+          const data = await seatMapApi.getSeatmap(id as string);
+          // The API returns seatmap data with availability info, not individual seats
+          // For now, we'll create mock seat data based on the venue capacity
+          const venueCapacity = data.data.seatmap.seats.total;
+          const occupiedSeats = data.data.seatmap.seats.occupiedSeats;
+          
+          // Create mock seats for display (this should be replaced with actual seat layout from backend)
+          const mockSeats = Array.from({ length: venueCapacity }, (_, i) => {
+            const seatNo = i + 1;
+            const isOccupied = occupiedSeats.includes(seatNo);
+            const row = Math.floor((seatNo - 1) / 10) + 1;
+            const seatNumber = ((seatNo - 1) % 10) + 1;
+            let rowName: string;
+            let category: 'vip' | 'fan-pit' | 'general' | 'balcony';
+            
+            if (row === 1) {
+              rowName = "VIP";
+              category = "vip";
+            } else if (row <= 5) {
+              rowName = `Fan Pit ${row - 1}`;
+              category = "fan-pit";
+            } else {
+              rowName = "General";
+              category = "general";
+            }
+            
+            return {
+              id: `${rowName.toLowerCase().replace(' ', '-')}-${seatNumber}`,
+              row: rowName,
+              number: seatNumber,
+              category,
+              status: isOccupied ? 'sold' : 'available',
+              price: category === 'vip' ? 20800 : category === 'fan-pit' ? 15000 : 10000
+            };
+          });
           
           setSeatMap({
-            ...data,
-            seats: seatsWithCategories
+            ...data.data.seatmap,
+            seats: mockSeats
           });
         } catch (error) {
           console.error('Error fetching seat map:', error);
@@ -231,13 +261,22 @@ const SeatSelectionPage = () => {
 
                 <SeatMap
                   eventId={id}
-                  selectedSeats={selectedSeats}
+                  selectedSeats={selectedSeats.map(seat => convertBackendSeatToFrontend(seat.seatNo, seat.category, seat.price, seat.status))}
                   onSeatSelect={(seats) => {
                     // Update local state
                     setLocalSelectedSeats(seats);
-                    // Update global store
+                    // Convert Seat[] to BackendSeat[] for store
                     clearSeats();
-                    seats.forEach(seat => addSeat(seat));
+                    seats.forEach(seat => {
+                      // Convert back to BackendSeat format
+                      const backendSeat = {
+                        seatNo: (seat.row === 'VIP' ? 0 : seat.row.includes('Fan Pit') ? (parseInt(seat.row.split(' ')[2]) - 1) * 10 : 40) + seat.number,
+                        status: seat.status,
+                        price: seat.price,
+                        category: seat.category
+                      };
+                      addSeat(backendSeat);
+                    });
                   }}
                 />
               </div>
@@ -315,7 +354,7 @@ const SeatSelectionPage = () => {
                               <span className="font-semibold">Reservation Timer</span>
                             </div>
                             <div className="text-white font-mono text-lg">
-                              {formatCountdown(expiresAt)}
+                              {formatCountdown(new Date(expiresAt))}
                             </div>
                           </motion.div>
                         )}
@@ -323,17 +362,23 @@ const SeatSelectionPage = () => {
                         <motion.button
                           onClick={async () => {
                             try {
-                              const reservation = await seatMapApi.createReservation({
-                                eventId: id as string,
-                                seatIds: localSelectedSeats.map(seat => seat.id),
-                              });
-                              setReservation(reservation.id, new Date(reservation.expiresAt));
-                              
-                              // Sync selected seats to global store
-                              clearSeats(); // Clear any existing seats first
-                              localSelectedSeats.forEach(seat => addSeat(seat));
-                              
-                              router.push('/checkout');
+                              // For now, reserve the first seat as an example
+                              // TODO: Handle multiple seat reservations properly
+                              const firstSeat = localSelectedSeats[0];
+                              if (firstSeat) {
+                                const reservation = await seatMapApi.reserveSeat({
+                                  eventId: id as string,
+                                  seatNo: firstSeat.seatNo || 1, // Need to calculate seatNo properly
+                                  attendeeId: 'current-user-id', // TODO: Get from auth context
+                                });
+                                setReservation(reservation.data.reservationId, reservation.data.expiresAt);
+                                
+                                // Sync selected seats to global store
+                                clearSeats(); // Clear any existing seats first
+                                localSelectedSeats.forEach(seat => addSeat(seat));
+                                
+                                router.push('/checkout');
+                              }
                             } catch (error) {
                               console.error('Error creating reservation:', error);
                             }

@@ -1,14 +1,83 @@
-import axios from 'axios';
+import { apiClient } from '../lib/apiClient';
+import { API_ENDPOINTS } from '../lib/config';
 
-const API_BASE = '/api';
+export interface TicketData {
+  attendeeId: string;
+  eventId: string;
+  seatNo: number;
+  category: 'standard' | 'vip' | 'premium';
+  price: number;
+}
+
+export interface Ticket {
+  _id: string;
+  attendee: {
+    _id: string;
+    name: string;
+    email: string;
+  };
+  event: {
+    _id: string;
+    title: string;
+    date: string;
+    venue: {
+      _id: string;
+      name: string;
+      location: string;
+      capacity: number;
+    } | string; // Can be string if not populated
+    category: string;
+  } | string; // Can be string if not populated
+  seatNo: number;
+  category: string;
+  price: number;
+  status: 'active' | 'cancelled' | 'refunded' | 'reserved';
+  ticketNumber: string;
+  qrCode: string;
+  issuedAt: string;
+  payment?: string;
+  reservedAt?: string;
+  reservationExpiresAt?: string;
+}
+
+export interface UserTicketsResponse {
+  success: boolean;
+  data: { tickets: Ticket[] };
+}
 
 export const ticketsApi = {
-  getUserTickets: async (userId: string) => {
-    const response = await axios.get(`${API_BASE}/users/${userId}/tickets`);
+  issueTicket: async (ticketData: TicketData): Promise<{ success: boolean; data: { ticket: Ticket } }> => {
+    const response = await apiClient.post(API_ENDPOINTS.TICKETS.ISSUE, ticketData);
     return response.data;
   },
-  createTickets: async (userId: string, ticketData: { reservationId: string; eventId: string; seatIds: string[] }) => {
-    const response = await axios.post(`${API_BASE}/users/${userId}/tickets`, ticketData);
+
+  getUserTickets: async (userId: string): Promise<UserTicketsResponse> => {
+    const response = await apiClient.get(`${API_ENDPOINTS.TICKETS.USER_TICKETS}/${userId}`);
+    return response.data;
+  },
+
+  getTicketDetails: async (ticketId: string): Promise<{ success: boolean; data: { ticket: Ticket } }> => {
+    const response = await apiClient.get(`${API_ENDPOINTS.TICKETS.DETAIL}/${ticketId}`);
+    return response.data;
+  },
+
+  cancelTicket: async (ticketId: string, reason: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.put(`${API_ENDPOINTS.TICKETS.CANCEL}/${ticketId}/cancel`, { reason });
+    return response.data;
+  },
+
+  transferTicket: async (ticketId: string, newAttendeeId: string): Promise<{ success: boolean; message: string }> => {
+    const response = await apiClient.put(`${API_ENDPOINTS.TICKETS.TRANSFER}/${ticketId}/transfer`, { newAttendeeId });
+    return response.data;
+  },
+
+  getEventTickets: async (eventId: string): Promise<{ success: boolean; data: { tickets: Ticket[] } }> => {
+    const response = await apiClient.get(`${API_ENDPOINTS.TICKETS.EVENT_TICKETS}/${eventId}`);
+    return response.data;
+  },
+
+  validateTicket: async (ticketId: string, eventId: string): Promise<{ success: boolean; message: string; data?: any }> => {
+    const response = await apiClient.post(API_ENDPOINTS.TICKETS.VALIDATE, { ticketId, eventId });
     return response.data;
   },
 };

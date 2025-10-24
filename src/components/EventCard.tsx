@@ -3,25 +3,19 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { formatDate, formatPrice } from '../utils/formatters';
 import { Calendar, MapPin, Users, Star } from 'lucide-react';
-
-interface Event {
-  id: string;
-  title: string;
-  description: string;
-  date: string;
-  venue: string;
-  image: string;
-  tags: string[];
-  price: number;
-  availableSeats: number;
-}
+import { Event } from '../api/eventsApi';
 
 interface EventCardProps {
   event: Event;
 }
 
 const EventCard: React.FC<EventCardProps> = ({ event }) => {
-  const availabilityPercentage = (event.availableSeats / 5000) * 100; // Assuming max capacity for visual
+  // Calculate available seats from capacity and analytics
+  const availableSeats = event.capacity - event.analytics.attendees;
+  const availabilityPercentage = (availableSeats / event.capacity) * 100;
+  
+  // Get the lowest price from pricing array
+  const lowestPrice = event.pricing.length > 0 ? Math.min(...event.pricing.map(p => p.price)) : 0;
 
   return (
     <motion.div
@@ -92,7 +86,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             rotate: [0, -5, 5, 0]
           }}
         >
-          {formatPrice(event.price)}
+          {formatPrice(lowestPrice)}
         </motion.div>
 
         {/* Availability indicator */}
@@ -161,7 +155,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
           </div>
           <div className="flex items-center space-x-2 text-cyan-400 text-sm">
             <MapPin className="w-4 h-4" />
-            <span>{event.venue}</span>
+            <span>{event.venue?.name || 'TBA'}</span>
           </div>
         </motion.div>
 
@@ -198,7 +192,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.7 }}
         >
-          <Link href={`/events/${event.id}`}>
+          <Link href={`/events/${event._id}`}>
             <motion.button
               className="w-full bg-gradient-to-r from-green-500 via-green-400 to-cyan-500 text-black py-3 rounded-lg font-semibold hover:from-green-400 hover:via-cyan-400 hover:to-purple-500 transition-all duration-150 shadow-lg hover:shadow-green-500/50 relative overflow-hidden group"
               whileHover={{

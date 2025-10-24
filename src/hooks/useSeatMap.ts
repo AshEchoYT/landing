@@ -11,7 +11,7 @@ export const useSeatMap = (eventId: string) => {
   useEffect(() => {
     const fetchSeatMap = async () => {
       try {
-        const data = await seatMapApi.getSeatMap(eventId);
+        const data = await seatMapApi.getSeatmap(eventId);
         setSeatMap(data);
       } catch (err: any) {
         setError(err.message);
@@ -24,17 +24,21 @@ export const useSeatMap = (eventId: string) => {
   }, [eventId]);
 
   const selectSeat = async (seat: any) => {
-    if (selectedSeats.find(s => s.id === seat.id)) {
-      removeSeat(seat.id);
+    if (selectedSeats.find(s => s.seatNo === seat.seatNo)) {
+      removeSeat(seat.seatNo);
       // Cancel reservation if needed
     } else {
       addSeat(seat);
       try {
-        const reservation = await seatMapApi.createReservation({
+        const reservation = await seatMapApi.reserveSeat({
           eventId,
-          seatIds: [seat.id],
+          seatNo: seat.seatNo,
+          attendeeId: 'user_id', // This should come from auth context
+          duration: 15
         });
-        setReservation(reservation.id, new Date(reservation.expiresAt));
+        if (reservation.success && reservation.data) {
+          setReservation(reservation.data.reservationId, reservation.data.expiresAt);
+        }
       } catch (err) {
         // Handle error
       }

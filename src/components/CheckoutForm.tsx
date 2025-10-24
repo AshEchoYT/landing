@@ -65,11 +65,17 @@ const CheckoutForm = () => {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // Create tickets after successful payment
-      const tickets = await ticketsApi.createTickets(user.id, {
-        reservationId,
-        eventId: 'event_123', // This should come from the reservation
-        seatIds: selectedSeats.map(seat => seat.id),
-      });
+      const ticketPromises = selectedSeats.map(seat => 
+        ticketsApi.issueTicket({
+          attendeeId: user._id,
+          eventId: 'event_123', // This should come from the reservation/context
+          seatNo: seat.seatNo,
+          category: seat.category as 'standard' | 'vip' | 'premium',
+          price: seat.price
+        })
+      );
+      
+      const tickets = await Promise.all(ticketPromises);
 
       setPaymentStatus('success');
 
