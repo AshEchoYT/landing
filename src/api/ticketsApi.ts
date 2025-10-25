@@ -18,15 +18,14 @@ export interface Ticket {
   };
   event: {
     _id: string;
-    title: string;
-    date: string;
+    name: string;
+    startDate: string;
     venue: {
       _id: string;
       name: string;
       location: string;
       capacity: number;
     } | string; // Can be string if not populated
-    category: string;
   } | string; // Can be string if not populated
   seatNo: number;
   category: string;
@@ -79,5 +78,22 @@ export const ticketsApi = {
   validateTicket: async (ticketId: string, eventId: string): Promise<{ success: boolean; message: string; data?: any }> => {
     const response = await apiClient.post(API_ENDPOINTS.TICKETS.VALIDATE, { ticketId, eventId });
     return response.data;
+  },
+
+  downloadTicket: async (ticketId: string): Promise<void> => {
+    const response = await apiClient.get(`${API_ENDPOINTS.TICKETS.DOWNLOAD}/${ticketId}/download`, {
+      responseType: 'blob'
+    });
+
+    // Create a blob URL and trigger download
+    const blob = new Blob([response.data], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `ticket-${ticketId}.html`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
 };

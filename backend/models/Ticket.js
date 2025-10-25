@@ -119,8 +119,8 @@ ticketSchema.virtual('seatLocation').get(function() {
   return `${this.metadata?.section || ''} ${this.metadata?.row || ''}${this.seatNo}`.trim();
 });
 
-// Pre-save middleware to generate ticket number
-ticketSchema.pre('save', function(next) {
+// Pre-save middleware to generate ticket number and QR code
+ticketSchema.pre('save', async function(next) {
   if (!this.ticketNumber) {
     // Generate unique ticket number: EVT + eventId (first 6 chars) + timestamp + random
     const eventId = this.event.toString().substring(0, 6).toUpperCase();
@@ -130,8 +130,44 @@ ticketSchema.pre('save', function(next) {
   }
 
   if (!this.qrCode) {
-    // Generate QR code data (in real app, this would be encrypted)
-    this.qrCode = `TICKET_${this.ticketNumber}_${Date.now()}`;
+    try {
+      console.log('Generating QR code for ticket:', this.ticketNumber);
+      // Import qrcode dynamically to avoid issues if not installed
+      const qrcode = (await import('qrcode')).default;
+
+      // Generate QR code data containing ticket information
+      const qrData = JSON.stringify({
+        ticketId: this._id.toString(),
+        ticketNumber: this.ticketNumber,
+        eventId: this.event.toString(),
+        attendeeId: this.attendee.toString(),
+        seatNo: this.seatNo,
+        category: this.category,
+        price: this.price,
+        issuedAt: this.issuedAt || new Date(),
+        status: this.status
+      });
+
+      // Generate QR code as data URL
+      this.qrCode = await qrcode.toDataURL(qrData, {
+        errorCorrectionLevel: 'M',
+        type: 'image/png',
+        quality: 0.92,
+        margin: 1,
+        color: {
+          dark: '#22c55e', // Green color to match theme
+          light: '#ffffff'
+        }
+      });
+
+      console.log('QR code generated successfully for ticket:', this.ticketNumber);
+      console.log('QR code starts with:', this.qrCode.substring(0, 50));
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      // Fallback to text-based QR code data
+      this.qrCode = `TICKET_${this.ticketNumber}_${Date.now()}`;
+      console.log('Using fallback QR code:', this.qrCode);
+    }
   }
 
   next();

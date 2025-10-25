@@ -219,12 +219,12 @@ eventSchema.virtual('duration').get(function() {
 
 // Virtual for primary image
 eventSchema.virtual('primaryImage').get(function() {
-  return this.images.find(img => img.isPrimary) || this.images[0];
+  return this.images && this.images.length > 0 ? (this.images.find(img => img.isPrimary) || this.images[0]) : null;
 });
 
 // Virtual for attendee count
 eventSchema.virtual('attendeeCount').get(function() {
-  return this.attendees.filter(a => a.status === 'registered').length;
+  return this.attendees ? this.attendees.filter(a => a.status === 'registered').length : 0;
 });
 
 // Pre-save middleware

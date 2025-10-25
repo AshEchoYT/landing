@@ -59,25 +59,25 @@ const CheckoutForm = () => {
 
     setLoading(true);
     setError(null);
-    setPaymentStatus('initiating');
+    setPaymentStatus('processing');
 
     try {
-      // Step 1: Initiate payments for all booked seats (tickets)
+      // Process payments directly for all booked seats (tickets)
       const paymentPromises = selectedSeats.map(async (seat) => {
         try {
           if (!seat.ticketId) {
             throw new Error(`Ticket ID not found for seat ${seat.seatNo}`);
           }
 
-          return await paymentApi.initiatePayment({
+          return await paymentApi.processMockPayment({
+            attendeeId: user._id,
             ticketId: seat.ticketId,
-            paymentMethod: 'card',
             amount: seat.price,
-            category: seat.category
+            mode: 'card'
           });
         } catch (error: any) {
-          console.error(`Failed to initiate payment for seat ${seat.seatNo}:`, error);
-          throw new Error(`Payment initiation failed for seat ${seat.seatNo}: ${error.response?.data?.message || error.message}`);
+          console.error(`Failed to process payment for seat ${seat.seatNo}:`, error);
+          throw new Error(`Payment processing failed for seat ${seat.seatNo}: ${error.response?.data?.message || error.message}`);
         }
       });
 
@@ -86,65 +86,28 @@ const CheckoutForm = () => {
       const failedPayments = paymentResults.filter(result => result.status === 'rejected');
 
       if (successfulPayments.length === 0) {
-        throw new Error('Failed to initiate any payments. Please try again.');
+        throw new Error('Failed to process any payments. Please try again.');
       }
 
       if (failedPayments.length > 0) {
-        console.warn(`${failedPayments.length} payment initiations failed:`, failedPayments);
+        console.warn(`${failedPayments.length} payment(s) failed:`, failedPayments);
         // Continue with successful payments but warn user
-        setError(`${failedPayments.length} payment(s) failed to initiate. Proceeding with ${successfulPayments.length} successful payment(s).`);
+        setError(`${failedPayments.length} payment(s) failed. Proceeding with ${successfulPayments.length} successful payment(s).`);
       }
 
-      const paymentIds = successfulPayments.map((result: any) => result.value.data.paymentId);
+      if (successfulPayments.length > 0) {
+        setPaymentId(successfulPayments[0].value.data.paymentId); // Store first payment ID for status tracking
+        setPaymentStatus('success');
 
-      if (paymentIds.length > 0) {
-        setPaymentId(paymentIds[0]); // Store first payment ID for status tracking
-        setPaymentStatus('processing');
+        // Clear seat selection
+        clearSeats();
 
-        // Step 2: Process payments
-        const processPromises = paymentIds.map(async (id: string, index: number) => {
-          try {
-            const result = await paymentApi.processPayment(id, {
-              cardDetails: {
-                number: cardDetails.number.replace(/\s/g, ''),
-                expiry: cardDetails.expiry,
-                cvv: cardDetails.cvv,
-                name: cardDetails.name
-              }
-            });
-            return result;
-          } catch (error: any) {
-            console.error(`Payment processing failed for payment ${id}:`, error);
-            throw new Error(`Payment processing failed for seat ${selectedSeats[index]?.seatNo || 'unknown'}: ${error.response?.data?.message || error.message}`);
-          }
-        });
-
-        const processResults = await Promise.allSettled(processPromises);
-        const successfulProcesses = processResults.filter(result => result.status === 'fulfilled');
-        const failedProcesses = processResults.filter(result => result.status === 'rejected');
-
-        // Check if all payments were successful
-        if (successfulProcesses.length === paymentIds.length) {
-          setPaymentStatus('success');
-
-          // Clear seat selection
-          clearSeats();
-
-          // Redirect to tickets page after a short delay
-          setTimeout(() => {
-            router.push('/tickets');
-          }, 2000);
-        } else if (successfulProcesses.length > 0) {
-          // Partial success - some payments succeeded
-          setPaymentStatus('error');
-          setError(`${successfulProcesses.length} payment(s) succeeded, but ${failedProcesses.length} failed. Please contact support with payment ID: ${paymentIds[0]}`);
-        } else {
-          // All payments failed
-          setPaymentStatus('error');
-          throw new Error('All payments failed. Please check your card details and try again.');
-        }
+        // Redirect to tickets page after a short delay
+        setTimeout(() => {
+          router.push('/tickets');
+        }, 2000);
       } else {
-        throw new Error('Failed to initiate payments');
+        throw new Error('All payments failed. Please check your card details and try again.');
       }
 
     } catch (err: any) {
@@ -261,22 +224,6 @@ const CheckoutForm = () => {
       )}
 
       {/* Payment Status */}
-      {paymentStatus === 'initiating' && (
-        <motion.div
-          className="flex items-center justify-center space-x-3 p-4 bg-blue-500/20 border border-blue-500/30 rounded-xl"
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.3 }}
-        >
-          <motion.div
-            className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-          <span className="text-blue-400 font-semibold">Initiating payment...</span>
-        </motion.div>
-      )}
-
       {paymentStatus === 'processing' && (
         <motion.div
           className="flex items-center justify-center space-x-3 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl"
@@ -301,7 +248,7 @@ const CheckoutForm = () => {
           transition={{ duration: 0.3 }}
         >
           <CheckCircle2 className="w-5 h-5 text-green-400" />
-          <span className="text-green-400 font-semibold">Payment successful! Creating tickets...</span>
+          <span className="text-green-400 font-semibold">Payment successful! Redirecting to tickets...</span>
         </motion.div>
       )}
 

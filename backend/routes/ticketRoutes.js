@@ -7,7 +7,8 @@ import {
   cancelTicket,
   transferTicket,
   getEventTickets,
-  validateTicket
+  validateTicket,
+  downloadTicket
 } from '../controllers/ticketController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
@@ -69,18 +70,9 @@ router.put(
 // @access  Private (Organizer/Admin)
 router.get('/event/:eventId', authenticateToken, requireRole(['organizer', 'admin']), getEventTickets);
 
-// @route   POST /api/v1/tickets/validate
-// @desc    Validate ticket (for entry)
-// @access  Private (Staff/Admin)
-router.post(
-  '/validate',
-  authenticateToken,
-  requireRole(['staff', 'admin']),
-  [
-    body('ticketId').isMongoId().withMessage('Valid ticket ID is required'),
-    body('eventId').isMongoId().withMessage('Valid event ID is required')
-  ],
-  validateTicket
-);
+// @route   GET /api/v1/tickets/:ticketId/download
+// @desc    Download ticket
+// @access  Private
+router.get('/:ticketId/download', authenticateToken, downloadTicket);
 
 export default router;

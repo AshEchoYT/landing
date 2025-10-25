@@ -197,13 +197,15 @@ export const getAttendeeStats = asyncHandler(async (req, res) => {
     status: 'active'
   });
 
-  // Total amount spent
-  const payments = await Payment.find({
+  // Total amount spent (sum of ticket prices for successful payments)
+  const successfulPayments = await Payment.find({
     attendee: attendeeId,
     status: 'Success'
-  }).select('amount');
+  }).populate('ticket', 'price');
 
-  const totalSpent = payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const totalSpent = successfulPayments.reduce((sum, payment) => {
+    return sum + (payment.ticket?.price || 0);
+  }, 0);
 
   // Events attended
   const uniqueEvents = await Ticket.distinct('event', { attendee: attendeeId });

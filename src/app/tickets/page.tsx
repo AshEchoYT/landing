@@ -23,8 +23,11 @@ const MyTicketsPage = () => {
         try {
           setLoading(true);
           setError(null);
+          console.log('Fetching tickets for user:', user._id);
           const data = await ticketsApi.getUserTickets(user._id);
-          setTickets(data.data.tickets);
+          console.log('API Response:', data);
+          console.log('Tickets data:', data.data?.tickets);
+          setTickets(data.data.tickets || []);
         } catch (error) {
           console.error('Error fetching tickets:', error);
           setError('Failed to load your tickets. Please try again.');
@@ -32,6 +35,7 @@ const MyTicketsPage = () => {
           setLoading(false);
         }
       } else {
+        console.log('No user ID available');
         setLoading(false);
       }
     };
@@ -42,12 +46,10 @@ const MyTicketsPage = () => {
   const handleDownload = async (ticket: Ticket) => {
     setDownloading(ticket._id);
     try {
-      // Simulate download process
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      // In a real app, this would trigger the actual download
-      console.log('Downloading ticket:', ticket._id);
+      await ticketsApi.downloadTicket(ticket._id);
     } catch (error) {
       console.error('Error downloading ticket:', error);
+      alert('Failed to download ticket. Please try again.');
     } finally {
       setDownloading(null);
     }
@@ -157,7 +159,7 @@ const MyTicketsPage = () => {
                         <div className="relative h-48 overflow-hidden">
                           <img
                             src={typeof ticket.event === 'object' && ticket.event ? '/api/placeholder/400/200' : '/api/placeholder/400/200'}
-                            alt={typeof ticket.event === 'object' && ticket.event ? ticket.event.title : 'Event'}
+                            alt={typeof ticket.event === 'object' && ticket.event ? ticket.event.name : 'Event'}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
@@ -186,22 +188,22 @@ const MyTicketsPage = () => {
                         {/* Ticket Content */}
                         <div className="p-6">
                           <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-green-400 transition-colors duration-300">
-                            {typeof ticket.event === 'object' && ticket.event ? ticket.event.title : 'Event Title'}
+                            {typeof ticket.event === 'object' && ticket.event ? ticket.event.name : 'Event Title'}
                           </h3>
 
                           {/* Event Details */}
                           <div className="space-y-3 mb-6">
                             <div className="flex items-center space-x-3 text-gray-300">
                               <Calendar className="w-5 h-5 text-green-400" />
-                              <span>{typeof ticket.event === 'object' ? formatDate(ticket.event.date) : 'Date TBA'} at {typeof ticket.event === 'object' ? formatTime(ticket.event.date) : 'Time TBA'}</span>
+                              <span>{typeof ticket.event === 'object' && ticket.event ? `${formatDate(ticket.event.startDate)} at ${formatTime(ticket.event.startDate)}` : 'Date TBA'}</span>
                             </div>
                             <div className="flex items-center space-x-3 text-gray-300">
                               <MapPin className="w-5 h-5 text-cyan-400" />
-                              <span>{typeof ticket.event === 'object' && typeof ticket.event.venue === 'object' ? ticket.event.venue.name : 'Venue TBA'}</span>
+                              <span>{typeof ticket.event === 'object' && ticket.event && typeof ticket.event.venue === 'object' && ticket.event.venue ? ticket.event.venue.name : 'Venue TBA'}</span>
                             </div>
                             <div className="flex items-center space-x-3 text-gray-300">
                               <TicketIcon className="w-5 h-5 text-purple-400" />
-                              <span>Seat {ticket.seatNo}</span>
+                              <span>Seat {ticket.seatNo || 'N/A'}</span>
                             </div>
                           </div>
 
@@ -228,11 +230,21 @@ const MyTicketsPage = () => {
                                 whileHover={{ scale: 1.05 }}
                                 transition={{ duration: 0.2 }}
                               >
-                                <img
-                                  src={ticket.qrCode}
-                                  alt="QR Code"
-                                  className="w-32 h-32"
-                                />
+                                {ticket.qrCode ? (
+                                  <img
+                                    src={ticket.qrCode}
+                                    alt="QR Code"
+                                    className="w-32 h-32"
+                                    onError={(e) => {
+                                      console.error('QR code failed to load:', ticket.qrCode);
+                                      e.currentTarget.style.display = 'none';
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-32 h-32 bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+                                    QR Code Not Available
+                                  </div>
+                                )}
                                 {/* QR Code Glow Effect */}
                                 <div className="absolute inset-0 bg-green-400/20 rounded-lg blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                               </motion.div>
@@ -250,19 +262,19 @@ const MyTicketsPage = () => {
                             <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 opacity-0 group-hover/btn:opacity-30 transition-opacity duration-300"></div>
                             <div className="relative flex items-center justify-center space-x-3">
                               {downloading === ticket._id ? (
-                                <>
+                                <div className="flex items-center space-x-3">
                                   <motion.div
                                     className="w-5 h-5 border-2 border-black border-t-transparent rounded-full"
                                     animate={{ rotate: 360 }}
                                     transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                                   />
                                   <span>Downloading...</span>
-                                </>
+                                </div>
                               ) : (
-                                <>
+                                <div className="flex items-center space-x-3">
                                   <Download className="w-5 h-5" />
                                   <span>Download Ticket</span>
-                                </>
+                                </div>
                               )}
                             </div>
                           </motion.button>

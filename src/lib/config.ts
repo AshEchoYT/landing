@@ -49,6 +49,7 @@ export const API_ENDPOINTS = {
     TRANSFER: '/tickets',
     EVENT_TICKETS: '/tickets/event',
     VALIDATE: '/tickets/validate',
+    DOWNLOAD: '/tickets',
   },
 
   // Seatmap

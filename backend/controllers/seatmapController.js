@@ -30,7 +30,10 @@ export const getSeatmap = asyncHandler(async (req, res) => {
     status: 'active'
   }, 'seatNo status category price');
 
+  console.log(`Found ${tickets.length} active tickets for event ${eventId}:`, tickets.map(t => ({ seatNo: t.seatNo, status: t.status })));
+
   const occupiedSeats = tickets.map(ticket => ticket.seatNo);
+  console.log('Occupied seats:', occupiedSeats);
 
   // Use event pricing if available, otherwise use defaults
   const pricing = event.pricing && event.pricing.length > 0 ? event.pricing : [
@@ -140,6 +143,9 @@ export const bookSeat = asyncHandler(async (req, res) => {
     status: 'active',
     issuedAt: new Date()
   });
+
+  console.log(`Created ticket for seat ${seatNumber} with ID:`, ticket._id);
+  console.log('Ticket data:', ticket);
 
   // Update event analytics
   await Event.findByIdAndUpdate(eventId, {
@@ -275,35 +281,3 @@ export const getSeatPricing = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Update seat pricing (Organizer only)
-// @route   PUT /api/v1/seatmap/:eventId/pricing
-// @access  Private (Organizer)
-export const updateSeatPricing = asyncHandler(async (req, res) => {
-  const { eventId } = req.params;
-  const { pricing } = req.body;
-
-  const event = await Event.findById(eventId);
-  if (!event) {
-    return res.status(404).json({
-      success: false,
-      message: 'Event not found'
-    });
-  }
-
-  // Check if user is the organizer
-  if (event.organizer.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
-    return res.status(403).json({
-      success: false,
-      message: 'Not authorized to update pricing'
-    });
-  }
-
-  event.pricing = pricing;
-  await event.save();
-
-  res.json({
-    success: true,
-    message: 'Seat pricing updated successfully',
-    data: { pricing: event.pricing }
-  });
-});

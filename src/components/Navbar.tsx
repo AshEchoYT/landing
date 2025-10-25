@@ -25,8 +25,7 @@ const Navbar = () => {
     ...(user ? [{ href: '/tickets', label: 'My Tickets', icon: Ticket }] : []),
     ...(user?.role === 'organizer' ? [{ href: '/organizer', label: 'Dashboard', icon: BarChart3 }] : []),
     ...(user?.role === 'attendee' ? [
-      { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-      { href: '/profile', label: 'Profile', icon: User }
+      { href: '/dashboard', label: 'Dashboard', icon: BarChart3 }
     ] : []),
   ];
 
@@ -34,8 +33,8 @@ const Navbar = () => {
     <motion.nav
       className={`fixed top-0 w-full z-50 transition-all duration-300 ${
         isScrolled
-          ? 'bg-black/90 backdrop-blur-xl border-b border-green-500/30 shadow-lg shadow-green-500/10'
-          : 'bg-black/60 backdrop-blur-md border-b border-green-500/20'
+          ? 'bg-black/95 backdrop-blur-xl border-b border-green-500/30 shadow-lg shadow-green-500/10'
+          : 'bg-black/80 backdrop-blur-md border-b border-green-500/20'
       }`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
@@ -99,7 +98,6 @@ const Navbar = () => {
                     <span>{item.label}</span>
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-cyan-500/20 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      layoutId={`nav-bg-${item.href}`}
                     />
                   </motion.div>
                 </Link>
@@ -110,16 +108,20 @@ const Navbar = () => {
             <div className="ml-6 pl-6 border-l border-green-500/20">
               {user ? (
                 <div className="flex items-center space-x-4">
-                  <motion.div
-                    className="flex items-center space-x-2 text-white"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                  >
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-cyan-500 rounded-full flex items-center justify-center">
-                      <User className="w-4 h-4 text-black" />
-                    </div>
-                    <span className="font-medium">{user.name}</span>
-                  </motion.div>
+                  <Link href="/profile">
+                    <motion.div
+                      className="flex items-center space-x-2 text-white cursor-pointer hover:text-green-400 transition-colors duration-300"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
+                      <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-cyan-500 rounded-full flex items-center justify-center">
+                        <User className="w-4 h-4 text-black" />
+                      </div>
+                      <span className="font-medium">{user.name}</span>
+                    </motion.div>
+                  </Link>
                   <motion.button
                     onClick={logout}
                     className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all duration-300 border border-red-500/30"
@@ -218,12 +220,18 @@ const Navbar = () => {
               <div className="pt-4 border-t border-green-500/20">
                 {user ? (
                   <div className="space-y-4">
-                    <div className="flex items-center space-x-3 px-4 py-3 text-white">
-                      <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-cyan-500 rounded-full flex items-center justify-center">
-                        <User className="w-4 h-4 text-black" />
-                      </div>
-                      <span className="font-medium">{user.name}</span>
-                    </div>
+                    <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
+                      <motion.div
+                        className="flex items-center space-x-3 px-4 py-3 text-white hover:text-green-400 hover:bg-green-500/10 transition-all duration-300 cursor-pointer rounded-lg"
+                        whileHover={{ scale: 1.02, x: 10 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-cyan-500 rounded-full flex items-center justify-center">
+                          <User className="w-4 h-4 text-black" />
+                        </div>
+                        <span className="font-medium">{user.name}</span>
+                      </motion.div>
+                    </Link>
                     <motion.button
                       onClick={() => {
                         logout();

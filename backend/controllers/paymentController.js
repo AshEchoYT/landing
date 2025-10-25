@@ -36,21 +36,20 @@ export const initiatePayment = asyncHandler(async (req, res) => {
     });
   }
 
-  // Check if ticket is in reserved status
-  if (ticket.status !== 'reserved') {
+  // Check if ticket is in active status (already booked)
+  if (ticket.status !== 'active') {
     return res.status(400).json({
       success: false,
       message: 'Ticket is not in a payable state'
     });
   }
 
-  // Check if ticket hasn't expired
-  if (ticket.reservationExpiresAt && ticket.reservationExpiresAt < new Date()) {
-    ticket.status = 'cancelled';
-    await ticket.save();
+  // Check if ticket already has a completed payment
+  const existingCompletedPayment = await Payment.findOne({ ticket: ticketId, status: 'completed' });
+  if (existingCompletedPayment) {
     return res.status(400).json({
       success: false,
-      message: 'Reservation has expired'
+      message: 'Payment already completed for this ticket'
     });
   }
 
@@ -149,18 +148,15 @@ export const processPayment = asyncHandler(async (req, res) => {
       // Mark payment as completed
       await payment.markCompleted(`GATEWAY_${Date.now()}`);
 
-      // Update ticket status to active
-      payment.ticket.status = 'active';
-      payment.ticket.issuedAt = new Date();
-      await payment.ticket.save();
+      // Ticket is already active from booking, just update issuedAt if not set
+      if (!payment.ticket.issuedAt) {
+        payment.ticket.issuedAt = new Date();
+        await payment.ticket.save();
+      }
 
-      // Update event analytics
-      await Event.findByIdAndUpdate(payment.ticket.event, {
-        $inc: {
-          'analytics.ticketsSold': 1,
-          'analytics.revenue': payment.amount
-        }
-      });
+      // Update event analytics (only if not already counted from booking)
+      // Note: Analytics are already updated in bookSeat, so we might not need to update again
+      // But keeping this for safety in case of payment-only flows
 
       res.json({
         success: true,
@@ -389,10 +385,19 @@ export const processMockPayment = asyncHandler(async (req, res) => {
     });
   }
 
-  if (ticket.status !== 'reserved') {
+  if (ticket.status !== 'active') {
     return res.status(400).json({
       success: false,
       message: 'Ticket is not available for payment'
+    });
+  }
+
+  // Check if payment already exists and is completed
+  const existingPayment = await Payment.findOne({ ticket: ticketId, status: 'completed' });
+  if (existingPayment) {
+    return res.status(400).json({
+      success: false,
+      message: 'Payment already completed for this ticket'
     });
   }
 
@@ -416,19 +421,14 @@ export const processMockPayment = asyncHandler(async (req, res) => {
     transactionId
   });
 
-  // Update ticket with payment reference and mark as issued
+  // Update ticket with payment reference (ticket is already active from booking)
   ticket.payment = payment._id;
-  ticket.status = 'active';
-  ticket.issuedAt = new Date();
+  if (!ticket.issuedAt) {
+    ticket.issuedAt = new Date();
+  }
   await ticket.save();
 
-  // Update event analytics
-  await Event.findByIdAndUpdate(ticket.event._id, {
-    $inc: {
-      'analytics.ticketsSold': 1,
-      'analytics.revenue': amount
-    }
-  });
+  // Note: Event analytics are already updated in bookSeat, so we don't update them again here
 
   res.json({
     success: true,

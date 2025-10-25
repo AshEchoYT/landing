@@ -5,8 +5,7 @@ import {
   bookSeat,
   getAvailableSeats,
   checkSeatAvailability,
-  getSeatPricing,
-  updateSeatPricing
+  getSeatPricing
 } from '../controllers/seatmapController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
@@ -46,10 +45,5 @@ router.get('/:eventId/seat/:seatNo', checkSeatAvailability);
 // @desc    Get seat pricing for an event
 // @access  Public
 router.get('/:eventId/pricing', getSeatPricing);
-
-// @route   PUT /api/v1/seatmap/:eventId/pricing
-// @desc    Update seat pricing (Organizer only)
-// @access  Private (Organizer)
-router.put('/:eventId/pricing', authenticateToken, updateSeatPricing);
 
 export default router;

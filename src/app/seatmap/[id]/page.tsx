@@ -26,6 +26,7 @@ const SeatSelectionPage = () => {
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [booking, setBooking] = useState(false);
   const { clearSeats, addSeat } = useSeatStore();
+  const [seatMapVersion, setSeatMapVersion] = useState(0);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -33,6 +34,7 @@ const SeatSelectionPage = () => {
       if (id) {
         try {
           const data = await seatMapApi.getSeatmap(id as string);
+          console.log('Initial seat map data:', data.data.seatmap.seats);
           setSeatMap(data.data.seatmap);
         } catch (error) {
           console.error('Error fetching seat map:', error);
@@ -67,6 +69,7 @@ const SeatSelectionPage = () => {
       // Book seats directly
       const bookingPromises = selectedSeats.map(async (seat) => {
         const seatNo = getSeatNo(seat.row, seat.number);
+        console.log(`Booking seat: ${seat.row}${seat.number} -> seatNo: ${seatNo}`);
 
         if (!seatNo || seatNo < 1) {
           console.error(`Invalid seat number for seat ${seat.id}: ${seatNo}`);
@@ -82,6 +85,7 @@ const SeatSelectionPage = () => {
             price: seat.price
           });
 
+          console.log(`Booked seat ${seatNo}, response:`, booking.data);
           return {
             seatId: seat.id,
             ticketId: booking.data.ticketId,
@@ -103,6 +107,52 @@ const SeatSelectionPage = () => {
       const validBookings = bookingResults.filter(result => result !== null);
 
       if (validBookings.length > 0) {
+        // Re-fetch seat map data to ensure occupied seats are accurately reflected
+        try {
+          console.log('Re-fetching seat map after booking...');
+          const updatedSeatMapData = await seatMapApi.getSeatmap(id as string);
+          console.log('Updated seat map data:', updatedSeatMapData.data.seatmap.seats);
+          
+          const updatedData = updatedSeatMapData.data.seatmap;
+          // Ensure occupiedSeats is a new array reference to trigger re-render
+          const newSeatMap = {
+            ...updatedData,
+            seats: {
+              ...updatedData.seats,
+              occupiedSeats: [...(updatedData.seats.occupiedSeats || [])]
+            }
+          };
+          setSeatMap(newSeatMap);
+          setSeatMapVersion(prev => prev + 1);
+        } catch (error) {
+          console.error('Error re-fetching seat map after booking:', error);
+          // Fallback: update local state if re-fetch fails
+          console.log('Using fallback local state update');
+          setSeatMap((prevSeatMap: any) => {
+            if (!prevSeatMap) return prevSeatMap;
+            
+            const newOccupiedSeats = [...prevSeatMap.seats.occupiedSeats];
+            validBookings.forEach(booking => {
+              if (!newOccupiedSeats.includes(booking.seatNo)) {
+                newOccupiedSeats.push(booking.seatNo);
+              }
+            });
+            
+            const updatedSeatMap = {
+              ...prevSeatMap,
+              seats: {
+                ...prevSeatMap.seats,
+                occupied: newOccupiedSeats.length,
+                available: prevSeatMap.seats.total - newOccupiedSeats.length,
+                occupiedSeats: newOccupiedSeats
+              }
+            };
+            
+            console.log('Fallback updated occupied seats:', updatedSeatMap.seats.occupiedSeats);
+            return updatedSeatMap;
+          });
+        }
+
         // Clear and set selected seats in global store with ticket IDs
         clearSeats();
         validBookings.forEach(booking => {
@@ -122,6 +172,9 @@ const SeatSelectionPage = () => {
       }
     } catch (error: any) {
       console.error('Error booking seats:', error);
+      
+      // Clear selected seats on error so user can try again
+      setSelectedSeats([]);
       
       // Show more specific error messages
       let errorMessage = 'Failed to book seats. Please try again.';
@@ -305,7 +358,16 @@ const SeatSelectionPage = () => {
                   venueCapacity={seatMap?.seats?.total || 60}
                   occupiedSeats={seatMap?.seats?.occupiedSeats || []}
                   pricing={seatMap?.pricing || []}
+                  version={seatMapVersion}
                 />
+
+                {/* Debug Info */}
+                <div className="mt-4 p-4 bg-gray-800/50 rounded-lg border border-gray-600/50">
+                  <h4 className="text-white font-semibold mb-2">Debug Info:</h4>
+                  <p className="text-gray-300 text-sm">Occupied Seats: {JSON.stringify(seatMap?.seats?.occupiedSeats || [])}</p>
+                  <p className="text-gray-300 text-sm">Total Seats: {seatMap?.seats?.total || 0}</p>
+                  <p className="text-gray-300 text-sm">Available Seats: {seatMap?.seats?.available || 0}</p>
+                </div>
               </div>
             </motion.div>
 

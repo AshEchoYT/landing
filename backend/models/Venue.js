@@ -129,17 +129,18 @@ venueSchema.index({ isActive: 1 });
 
 // Virtual for full address
 venueSchema.virtual('fullAddress').get(function() {
-  return `${this.address.street}, ${this.address.city}, ${this.address.state} - ${this.address.zipCode}, ${this.address.country}`;
+  if (!this.address) return '';
+  return `${this.address.street || ''}, ${this.address.city || ''}, ${this.address.state || ''} - ${this.address.zipCode || ''}, ${this.address.country || ''}`.replace(/^, |, $/, '');
 });
 
 // Virtual for primary image
 venueSchema.virtual('primaryImage').get(function() {
-  return this.images.find(img => img.isPrimary) || this.images[0];
+  return this.images && this.images.length > 0 ? (this.images.find(img => img.isPrimary) || this.images[0]) : null;
 });
 
 // Method to check availability
 venueSchema.methods.isAvailable = function(date, startTime, endTime) {
-  return !this.availability.some(slot =>
+  return !this.availability || !this.availability.some(slot =>
     slot.date.toDateString() === date.toDateString() &&
     slot.startTime === startTime &&
     slot.endTime === endTime &&

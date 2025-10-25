@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Mail, Phone, Bell, BellOff, Edit3, Save, X, Calendar, Ticket, DollarSign } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/Loader';
+import Navbar from '../../components/Navbar';
 import { attendeeApi, Attendee, UpdateAttendeeProfileData } from '../../api/attendeeApi';
 
 const ProfilePage = () => {
@@ -142,8 +143,10 @@ const ProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 pt-20">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
+      <Navbar />
+      <div className="pt-20">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <motion.div
           className="text-center mb-12"
@@ -435,6 +438,7 @@ const ProfilePage = () => {
             </motion.div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

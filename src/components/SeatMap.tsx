@@ -20,8 +20,9 @@ interface SeatMapProps {
   selectedSeats?: Seat[];
   onSeatSelect: (seats: Seat[]) => void;
   venueCapacity?: number;
-  occupiedSeats?: number[];
+  occupiedSeats?: (number | string)[];
   pricing?: Array<{ category: string; price: number }>;
+  version?: number;
 }
 
 export function SeatMap({
@@ -30,14 +31,21 @@ export function SeatMap({
   onSeatSelect,
   venueCapacity = 60,
   occupiedSeats = [],
-  pricing = []
+  pricing = [],
+  version = 0
 }: SeatMapProps) {
   const { user } = useAuth();
+
+  console.log('SeatMap received occupiedSeats:', occupiedSeats);
 
   // Generate all seats for the venue using the new utility
   const allSeats: Seat[] = useMemo(() => {
     const seats: Seat[] = [];
     const rows = ["VIP", "Fan Pit 1", "Fan Pit 2", "Fan Pit 3", "Fan Pit 4", "General"];
+
+    // Convert occupiedSeats to numbers for proper comparison
+    const occupiedSeatNumbers = occupiedSeats.map(seat => typeof seat === 'string' ? parseInt(seat) : seat);
+    console.log('Converted occupiedSeats to numbers:', occupiedSeatNumbers);
 
     rows.forEach((row) => {
       const category = getCategoryFromRow(row);
@@ -49,9 +57,13 @@ export function SeatMap({
 
       for (let seatNum = 1; seatNum <= 10; seatNum++) {
         const seatNo = getSeatNo(row, seatNum);
-        const isOccupied = occupiedSeats.includes(seatNo);
+        const isOccupied = occupiedSeatNumbers.includes(seatNo);
 
         const status: "available" | "sold" = isOccupied ? "sold" : "available";
+
+        if (isOccupied) {
+          console.log(`Seat ${seatNo} (${row}-${seatNum}) is occupied`);
+        }
 
         seats.push({
           id: `${row.toLowerCase().replace(' ', '-')}-${seatNum}`,
@@ -64,8 +76,9 @@ export function SeatMap({
       }
     });
 
+    console.log(`Generated ${seats.length} seats, ${seats.filter(s => s.status === 'sold').length} occupied`);
     return seats;
-  }, [venueCapacity, occupiedSeats, pricing]);
+  }, [venueCapacity, occupiedSeats, pricing, version]);
 
   // Get selected seat IDs
   const selectedSeatIds = externalSelectedSeats.map(seat => seat.id);

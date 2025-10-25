@@ -98,7 +98,7 @@ const MyTicketsPage = () => {
                         <div className="relative h-48 overflow-hidden">
                           <img
                             src="/api/placeholder/400/200"
-                            alt={typeof ticket.event === 'object' ? ticket.event.title : 'Event'}
+                            alt={typeof ticket.event === 'object' ? ticket.event.name : 'Event'}
                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                           />
                           <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent"></div>
@@ -112,14 +112,14 @@ const MyTicketsPage = () => {
                         {/* Ticket Content */}
                         <div className="p-6">
                           <h3 className="text-2xl font-bold text-white mb-4 group-hover:text-green-400 transition-colors duration-300">
-                            {typeof ticket.event === 'object' ? ticket.event.title : 'Event Title'}
+                            {typeof ticket.event === 'object' ? ticket.event.name : 'Event Title'}
                           </h3>
 
                           {/* Event Details */}
                           <div className="space-y-3 mb-6">
                             <div className="flex items-center space-x-3 text-gray-300">
                               <Calendar className="w-5 h-5 text-green-400" />
-                              <span>{typeof ticket.event === 'object' ? formatDate(ticket.event.date) + ' at ' + formatTime(ticket.event.date) : 'Date TBA'}</span>
+                              <span>{typeof ticket.event === 'object' ? formatDate(ticket.event.startDate) + ' at ' + formatTime(ticket.event.startDate) : 'Date TBA'}</span>
                             </div>
                             <div className="flex items-center space-x-3 text-gray-300">
                               <MapPin className="w-5 h-5 text-cyan-400" />
