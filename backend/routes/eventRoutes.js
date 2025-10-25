@@ -37,7 +37,7 @@ router.post(
     body('date').isISO8601().withMessage('Please provide a valid date'),
     body('venue').notEmpty().withMessage('Venue is required'),
     body('category').notEmpty().withMessage('Category is required'),
-    body('pricing').isArray().withMessage('Pricing must be an array'),
+    body('pricing').optional().isArray().withMessage('Pricing must be an array'),
     body('capacity').isInt({ min: 1 }).withMessage('Capacity must be a positive integer')
   ],
   createEvent

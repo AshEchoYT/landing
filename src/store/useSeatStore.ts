@@ -3,8 +3,7 @@ import { BackendSeat } from '@/types/seat';
 
 interface SeatStore {
   selectedSeats: BackendSeat[];
-  reservationId: string | null;
-  expiresAt: string | null;
+  reservations: { reservationId: string; seatNo: number; expiresAt: string }[];
   seatmap: any | null;
   availableSeats: number[];
   occupiedSeats: number[];
@@ -15,7 +14,7 @@ interface SeatStore {
   addSeat: (seat: BackendSeat) => void;
   removeSeat: (seatNo: number) => void;
   clearSeats: () => void;
-  setReservation: (id: string, expiresAt: string) => void;
+  setReservations: (reservations: { reservationId: string; seatNo: number; expiresAt: string }[]) => void;
   clearReservation: () => void;
   setSeatmap: (seatmap: any) => void;
   setAvailableSeats: (seats: number[]) => void;
@@ -26,8 +25,7 @@ interface SeatStore {
 
 export const useSeatStore = create<SeatStore>((set, get) => ({
   selectedSeats: [],
-  reservationId: null,
-  expiresAt: null,
+  reservations: [],
   seatmap: null,
   availableSeats: [],
   occupiedSeats: [],
@@ -44,9 +42,9 @@ export const useSeatStore = create<SeatStore>((set, get) => ({
 
   clearSeats: () => set({ selectedSeats: [] }),
 
-  setReservation: (id, expiresAt) => set({ reservationId: id, expiresAt }),
+  setReservations: (reservations) => set({ reservations }),
 
-  clearReservation: () => set({ reservationId: null, expiresAt: null }),
+  clearReservation: () => set({ reservations: [] }),
 
   setSeatmap: (seatmap) => set({ seatmap }),
 

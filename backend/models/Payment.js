@@ -1,69 +1,86 @@
 import mongoose from 'mongoose';
 
 const paymentSchema = new mongoose.Schema({
-  attendee: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Attendee',
-    required: [true, 'Attendee is required']
-  },
   ticket: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Ticket',
     required: [true, 'Ticket is required']
   },
+  attendee: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Attendee',
+    required: [true, 'Attendee is required']
+  },
+  event: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Event',
+    required: [true, 'Event is required']
+  },
   amount: {
     type: Number,
-    required: [true, 'Amount is required'],
+    required: [true, 'Payment amount is required'],
     min: [0, 'Amount cannot be negative']
   },
   currency: {
     type: String,
-    default: 'INR'
-  },
-  mode: {
-    type: String,
-    required: [true, 'Payment mode is required'],
-    enum: ['UPI', 'Card', 'Cash', 'Net Banking', 'Wallet'],
-    uppercase: true
+    default: 'INR',
+    enum: ['INR', 'USD', 'EUR', 'GBP']
   },
   status: {
     type: String,
-    enum: ['Pending', 'Success', 'Failed', 'Cancelled', 'Refunded'],
-    default: 'Pending'
+    enum: ['pending', 'completed', 'failed', 'refunded', 'cancelled'],
+    default: 'pending'
   },
-  date: {
-    type: Date,
-    default: Date.now
+  paymentMethod: {
+    type: String,
+    enum: ['card', 'upi', 'netbanking', 'wallet', 'cod'],
+    required: [true, 'Payment method is required']
   },
   transactionId: {
     type: String,
-    unique: true,
-    sparse: true // Allow null values but ensure uniqueness when present
+    required: [true, 'Transaction ID is required'],
+    unique: true
+  },
+  gatewayTransactionId: {
+    type: String,
+    sparse: true // Allows null values but ensures uniqueness when present
   },
   paymentGateway: {
     type: String,
-    default: 'MockPayment' // Since this is a mock system
+    enum: ['stripe', 'razorpay', 'paypal', 'payu', 'simulated'],
+    default: 'simulated'
   },
-  metadata: {
-    cardLast4: String, // For card payments
-    upiId: String, // For UPI payments
-    bankRef: String, // Bank reference number
-    failureReason: String, // If payment failed
-    additionalData: mongoose.Schema.Types.Mixed
+  paymentData: {
+    // Store gateway-specific data
+    cardLast4: String,
+    cardBrand: String,
+    upiId: String,
+    bankName: String,
+    // Additional metadata
+    metadata: mongoose.Schema.Types.Mixed
   },
-  refund: {
-    isRefunded: { type: Boolean, default: false },
-    refundAmount: Number,
-    refundDate: Date,
-    refundReason: String,
-    refundTransactionId: String
-  },
-  webhookData: mongoose.Schema.Types.Mixed, // Store webhook responses if any
-  attempts: {
+  refundAmount: {
     type: Number,
-    default: 1,
-    min: 1,
-    max: 3
+    default: 0,
+    min: [0, 'Refund amount cannot be negative']
+  },
+  refundReason: {
+    type: String,
+    maxlength: [500, 'Refund reason cannot exceed 500 characters']
+  },
+  refundedAt: Date,
+  failureReason: {
+    type: String,
+    maxlength: [500, 'Failure reason cannot exceed 500 characters']
+  },
+  initiatedAt: {
+    type: Date,
+    default: Date.now
+  },
+  completedAt: Date,
+  expiresAt: {
+    type: Date,
+    default: () => new Date(Date.now() + 15 * 60 * 1000) // 15 minutes expiry
   }
 }, {
   timestamps: true,
@@ -72,15 +89,16 @@ const paymentSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-paymentSchema.index({ attendee: 1 });
 paymentSchema.index({ ticket: 1 });
-paymentSchema.index({ status: 1 });
-paymentSchema.index({ date: -1 });
+paymentSchema.index({ attendee: 1 });
+paymentSchema.index({ event: 1 });
 paymentSchema.index({ transactionId: 1 });
+paymentSchema.index({ status: 1 });
+paymentSchema.index({ expiresAt: 1 });
 
 // Compound indexes
 paymentSchema.index({ attendee: 1, status: 1 });
-paymentSchema.index({ ticket: 1, status: 1 });
+paymentSchema.index({ event: 1, status: 1 });
 
 // Virtual for formatted amount
 paymentSchema.virtual('formattedAmount').get(function() {
@@ -89,61 +107,76 @@ paymentSchema.virtual('formattedAmount').get(function() {
 
 // Virtual for payment age
 paymentSchema.virtual('age').get(function() {
-  return Math.floor((Date.now() - this.date.getTime()) / (1000 * 60 * 60)); // hours
+  return Math.round((Date.now() - this.initiatedAt.getTime()) / (1000 * 60)); // minutes
 });
 
 // Pre-save middleware to generate transaction ID
-paymentSchema.pre('save', function(next) {
+paymentSchema.pre('save', async function(next) {
   if (this.isNew && !this.transactionId) {
-    // Generate unique transaction ID
+    // Generate unique transaction ID: TXN + timestamp + random
     const timestamp = Date.now().toString().slice(-8);
     const random = Math.random().toString(36).substring(2, 6).toUpperCase();
     this.transactionId = `TXN${timestamp}${random}`;
   }
+
   next();
 });
 
-// Instance method to mark as successful
-paymentSchema.methods.markSuccessful = function() {
-  this.status = 'Success';
+// Instance method to mark as completed
+paymentSchema.methods.markCompleted = function(gatewayTxnId = null) {
+  this.status = 'completed';
+  this.completedAt = new Date();
+  if (gatewayTxnId) {
+    this.gatewayTransactionId = gatewayTxnId;
+  }
   return this.save();
 };
 
 // Instance method to mark as failed
 paymentSchema.methods.markFailed = function(reason = '') {
-  this.status = 'Failed';
-  if (reason) {
-    this.metadata = this.metadata || {};
-    this.metadata.failureReason = reason;
-  }
+  this.status = 'failed';
+  this.failureReason = reason;
   return this.save();
 };
 
 // Instance method to process refund
 paymentSchema.methods.processRefund = function(amount, reason = '') {
-  this.refund.isRefunded = true;
-  this.refund.refundAmount = amount;
-  this.refund.refundDate = new Date();
-  this.refund.refundReason = reason;
-  this.refund.refundTransactionId = `REF${this.transactionId}`;
-  this.status = 'Refunded';
+  if (this.status !== 'completed') {
+    throw new Error('Cannot refund a payment that is not completed');
+  }
+
+  if (amount > this.amount) {
+    throw new Error('Refund amount cannot exceed payment amount');
+  }
+
+  this.status = 'refunded';
+  this.refundAmount = amount;
+  this.refundReason = reason;
+  this.refundedAt = new Date();
+
   return this.save();
 };
 
-// Static method to get payment statistics
-paymentSchema.statics.getPaymentStats = async function(attendeeId = null) {
-  const matchStage = attendeeId ? { attendee: attendeeId } : {};
+// Static method to find expired payments
+paymentSchema.statics.findExpired = function() {
+  return this.find({
+    status: 'pending',
+    expiresAt: { $lt: new Date() }
+  });
+};
 
-  return this.aggregate([
-    { $match: matchStage },
-    {
-      $group: {
-        _id: '$status',
-        count: { $sum: 1 },
-        totalAmount: { $sum: '$amount' }
-      }
-    }
-  ]);
+// Static method to cleanup expired payments
+paymentSchema.statics.cleanupExpired = async function() {
+  const expiredPayments = await this.findExpired();
+
+  // Mark expired payments as cancelled
+  const updatePromises = expiredPayments.map(payment => {
+    payment.status = 'cancelled';
+    return payment.save();
+  });
+
+  await Promise.all(updatePromises);
+  return expiredPayments.length;
 };
 
 export default mongoose.model('Payment', paymentSchema);

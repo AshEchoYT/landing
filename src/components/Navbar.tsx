@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, Zap, User, LogOut, Ticket, BarChart3 } from 'lucide-react';
+import { Menu, X, Zap, User, LogOut, Ticket, BarChart3, Building2 } from 'lucide-react';
 
 const Navbar = () => {
   const { user, logout } = useAuth();
@@ -21,8 +21,13 @@ const Navbar = () => {
 
   const navItems = [
     { href: '/events', label: 'Events', icon: Zap },
+    { href: '/venues', label: 'Venues', icon: Building2 },
     ...(user ? [{ href: '/tickets', label: 'My Tickets', icon: Ticket }] : []),
     ...(user?.role === 'organizer' ? [{ href: '/organizer', label: 'Dashboard', icon: BarChart3 }] : []),
+    ...(user?.role === 'attendee' ? [
+      { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
+      { href: '/profile', label: 'Profile', icon: User }
+    ] : []),
   ];
 
   return (

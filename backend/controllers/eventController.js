@@ -7,20 +7,21 @@ import { asyncHandler } from '../middleware/errorHandler.js';
 // @access  Public
 export const getEvents = asyncHandler(async (req, res) => {
   const {
-    type,
+    category,
     city,
     date,
     status = 'published',
     limit = 10,
     page = 1,
+    organizer,
     sort = '-startDate'
   } = req.query;
 
   // Build filter object
   const filter = { status };
 
-  if (type && type !== 'all') {
-    filter.type = type;
+  if (category && category !== 'all') {
+    filter.type = category; // Map category to type
   }
 
   if (city) {
@@ -35,17 +36,52 @@ export const getEvents = asyncHandler(async (req, res) => {
     };
   }
 
+  if (organizer) {
+    filter.organizer = organizer;
+  }
+
   // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
   // Get events with populated fields
   const events = await Event.find(filter)
     .populate('organizer', 'name email')
-    .populate('venue', 'name address.city capacity')
+    .populate('venue', 'name address capacity')
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit))
-    .select('-staff -sponsors -vendors -attendees'); // Exclude sensitive arrays
+    .select('-staff -sponsors -vendors'); // Keep attendees for analytics
+
+  // Transform events to match frontend expectations
+  const transformedEvents = events.map(event => ({
+    _id: event._id,
+    title: event.name, // Map name to title
+    description: event.description,
+    date: event.startDate.toISOString().split('T')[0], // Format date
+    venue: {
+      _id: event.venue._id,
+      name: event.venue.name,
+      location: `${event.venue.address?.city || ''}, ${event.venue.address?.state || ''}`,
+      capacity: event.venue.capacity
+    },
+    organizer: event.organizer._id,
+    category: event.type, // Map type to category
+    tags: event.tags,
+    pricing: event.pricing ? [{
+      category: 'standard',
+      price: event.pricing.minPrice
+    }] : [],
+    capacity: event.capacity,
+    status: event.status,
+    image: event.primaryImage?.url || '',
+    analytics: {
+      ticketsSold: event.attendees.filter(a => a.status === 'registered').length,
+      attendees: event.attendees.filter(a => a.status === 'attended').length,
+      revenue: event.analytics.revenue
+    },
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt
+  }));
 
   // Get total count for pagination
   const total = await Event.countDocuments(filter);
@@ -53,7 +89,7 @@ export const getEvents = asyncHandler(async (req, res) => {
   res.json({
     success: true,
     data: {
-      events,
+      events: transformedEvents,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -90,9 +126,40 @@ export const getEvent = asyncHandler(async (req, res) => {
     });
   }
 
+  // Transform event to match frontend expectations
+  const transformedEvent = {
+    _id: event._id,
+    title: event.name,
+    description: event.description,
+    date: event.startDate.toISOString().split('T')[0],
+    venue: {
+      _id: event.venue._id,
+      name: event.venue.name,
+      location: `${event.venue.address?.city || ''}, ${event.venue.address?.state || ''}`,
+      capacity: event.venue.capacity
+    },
+    organizer: event.organizer._id,
+    category: event.type,
+    tags: event.tags,
+    pricing: event.pricing ? [{
+      category: 'standard',
+      price: event.pricing.minPrice
+    }] : [],
+    capacity: event.capacity,
+    status: event.status,
+    image: event.primaryImage?.url || '',
+    analytics: {
+      ticketsSold: event.attendees.filter(a => a.status === 'registered').length,
+      attendees: event.attendees.filter(a => a.status === 'attended').length,
+      revenue: event.analytics.revenue
+    },
+    createdAt: event.createdAt,
+    updatedAt: event.updatedAt
+  };
+
   res.json({
     success: true,
-    data: { event }
+    data: { event: transformedEvent }
   });
 });
 
@@ -109,15 +176,40 @@ export const createEvent = asyncHandler(async (req, res) => {
     });
   }
 
+  // Transform frontend data to match backend model
+  const eventDate = new Date(req.body.date);
   const eventData = {
-    ...req.body,
-    organizer: req.user._id
+    name: req.body.title,
+    type: req.body.category,
+    description: req.body.description,
+    startDate: eventDate,
+    endDate: eventDate, // For now, assume single day event
+    startTime: eventDate.toTimeString().slice(0, 5), // Extract time from date
+    endTime: eventDate.toTimeString().slice(0, 5), // For now, same as start time
+    venue: req.body.venue,
+    capacity: req.body.capacity,
+    organizer: req.user._id,
+    status: 'published', // Set as published by default
+    tags: req.body.tags || [],
+    // Transform pricing array to pricing object
+    pricing: req.body.pricing && req.body.pricing.length > 0 ? {
+      minPrice: Math.min(...req.body.pricing.map(p => p.price)),
+      maxPrice: Math.max(...req.body.pricing.map(p => p.price)),
+      currency: 'USD' // Default currency
+    } : {
+      minPrice: 0,
+      maxPrice: 0,
+      currency: 'USD'
+    },
+    // Handle image upload
+    images: req.body.image ? [{
+      url: req.body.image,
+      alt: req.body.title,
+      isPrimary: true
+    }] : []
   };
 
   const event = await Event.create(eventData);
-
-  // Update organizer's event count
-  await Attendee.findByIdAndUpdate(req.user._id, { $inc: { totalEvents: 1 } });
 
   res.status(201).json({
     success: true,
@@ -147,9 +239,33 @@ export const updateEvent = asyncHandler(async (req, res) => {
     });
   }
 
+  // Transform frontend data to backend format
+  const eventData = {
+    name: req.body.title,
+    description: req.body.description,
+    type: req.body.category,
+    startDate: new Date(req.body.date),
+    endDate: new Date(req.body.date), // Assuming single day event for now
+    venue: req.body.venue,
+    tags: req.body.tags,
+    capacity: req.body.capacity,
+    status: req.body.status,
+    pricing: req.body.pricing && req.body.pricing.length > 0 ? {
+      minPrice: Math.min(...req.body.pricing.map(p => p.price)),
+      maxPrice: Math.max(...req.body.pricing.map(p => p.price)),
+      currency: 'USD'
+    } : event.pricing,
+    // Handle image update
+    images: req.body.image ? [{
+      url: req.body.image,
+      alt: req.body.title,
+      isPrimary: true
+    }] : event.images
+  };
+
   const updatedEvent = await Event.findByIdAndUpdate(
     req.params.id,
-    req.body,
+    eventData,
     { new: true, runValidators: true }
   );
 

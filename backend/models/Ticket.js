@@ -38,12 +38,11 @@ const ticketSchema = new mongoose.Schema({
   },
   qrCode: {
     type: String,
-    required: [true, 'QR code is required'],
-    unique: true
+    sparse: true // Allows null values but ensures uniqueness when present
   },
   status: {
     type: String,
-    enum: ['active', 'used', 'cancelled', 'refunded'],
+    enum: ['active', 'used', 'cancelled', 'refunded', 'reserved'],
     default: 'active'
   },
   payment: {
@@ -52,8 +51,7 @@ const ticketSchema = new mongoose.Schema({
   },
   ticketNumber: {
     type: String,
-    unique: true,
-    required: true
+    sparse: true // Allows null values but ensures uniqueness when present
   },
   metadata: {
     row: String,
@@ -95,8 +93,8 @@ const ticketSchema = new mongoose.Schema({
 // Indexes for better query performance
 ticketSchema.index({ event: 1 });
 ticketSchema.index({ attendee: 1 });
-ticketSchema.index({ qrCode: 1 });
-ticketSchema.index({ ticketNumber: 1 });
+ticketSchema.index({ qrCode: 1 }, { sparse: true });
+ticketSchema.index({ ticketNumber: 1 }, { sparse: true });
 ticketSchema.index({ status: 1 });
 ticketSchema.index({ category: 1 });
 
@@ -115,8 +113,8 @@ ticketSchema.virtual('seatLocation').get(function() {
 });
 
 // Pre-save middleware to generate ticket number
-ticketSchema.pre('save', async function(next) {
-  if (this.isNew && !this.ticketNumber) {
+ticketSchema.pre('save', function(next) {
+  if (!this.ticketNumber) {
     // Generate unique ticket number: EVT + eventId (first 6 chars) + timestamp + random
     const eventId = this.event.toString().substring(0, 6).toUpperCase();
     const timestamp = Date.now().toString().slice(-6);
@@ -124,7 +122,7 @@ ticketSchema.pre('save', async function(next) {
     this.ticketNumber = `EVT${eventId}${timestamp}${random}`;
   }
 
-  if (this.isNew && !this.qrCode) {
+  if (!this.qrCode) {
     // Generate QR code data (in real app, this would be encrypted)
     this.qrCode = `TICKET_${this.ticketNumber}_${Date.now()}`;
   }

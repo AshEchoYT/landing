@@ -33,6 +33,11 @@ export const API_ENDPOINTS = {
     HISTORY: '/payments',
     STATS: '/payments/stats',
     REFUND: '/payments',
+    INITIATE: '/payments/initiate',
+    PROCESS: '/payments',
+    DETAILS: '/payments',
+    USER: '/payments/user',
+    CANCEL: '/payments',
   },
 
   // Tickets
@@ -77,5 +82,31 @@ export const API_ENDPOINTS = {
     SPONSORS: '/organizer/sponsors',
     VENDORS: '/organizer/vendors',
     PROFILE: '/organizer/profile',
+  },
+
+  // Venues
+  VENUES: {
+    LIST: '/venues',
+    DETAIL: '/venues',
+    CREATE: '/venues',
+    UPDATE: '/venues',
+    DELETE: '/venues',
+    SEARCH: '/venues/search',
+    AVAILABILITY: '/venues',
+    UPDATE_AVAILABILITY: '/venues',
+    STATS: '/venues',
+  },
+
+  // Attendees
+  ATTENDEES: {
+    PROFILE: '/attendees/profile',
+    TICKETS: '/attendees/tickets',
+    EVENTS: '/attendees/events',
+    PAYMENTS: '/attendees/payments',
+    STATS: '/attendees/stats',
+    LIST: '/attendees',
+    DETAIL: '/attendees',
+    UPDATE: '/attendees',
+    DEACTIVATE: '/attendees',
   },
 };

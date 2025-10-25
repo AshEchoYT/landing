@@ -7,12 +7,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Crown, Zap, Ticket, ArrowUpCircle, Clock, ArrowRight } from 'lucide-react';
 import { seatMapApi } from '../../../api/seatMapApi';
 import { useSeatStore } from '../../../store/useSeatStore';
-import { formatCountdown, formatPrice } from '../../../utils/formatters';
+import { formatPrice } from '../../../utils/formatters';
+import { getSeatNo } from '../../../utils/seatUtils';
 import { SeatMap } from '../../../components/SeatMap';
 import Loader from '../../../components/Loader';
 import Navbar from '../../../components/Navbar';
 import Footer from '../../../components/Footer';
-import { convertBackendSeatToFrontend } from '../../../types/seat';
+import { Seat } from '../../../types/seat';
+import { useAuth } from '../../../context/AuthContext';
 
 const SeatSelectionPage = () => {
   const params = useParams();
@@ -21,53 +23,17 @@ const SeatSelectionPage = () => {
   const [seatMap, setSeatMap] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
-  const [localSelectedSeats, setLocalSelectedSeats] = useState<any[]>([]);
-  const { selectedSeats, reservationId, expiresAt, addSeat, removeSeat, setReservation, clearSeats } = useSeatStore();
+  const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
+  const [reserving, setReserving] = useState(false);
+  const { setReservations, clearSeats, addSeat } = useSeatStore();
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchSeatMap = async () => {
       if (id) {
         try {
           const data = await seatMapApi.getSeatmap(id as string);
-          // The API returns seatmap data with availability info, not individual seats
-          // For now, we'll create mock seat data based on the venue capacity
-          const venueCapacity = data.data.seatmap.seats.total;
-          const occupiedSeats = data.data.seatmap.seats.occupiedSeats;
-          
-          // Create mock seats for display (this should be replaced with actual seat layout from backend)
-          const mockSeats = Array.from({ length: venueCapacity }, (_, i) => {
-            const seatNo = i + 1;
-            const isOccupied = occupiedSeats.includes(seatNo);
-            const row = Math.floor((seatNo - 1) / 10) + 1;
-            const seatNumber = ((seatNo - 1) % 10) + 1;
-            let rowName: string;
-            let category: 'vip' | 'fan-pit' | 'general' | 'balcony';
-            
-            if (row === 1) {
-              rowName = "VIP";
-              category = "vip";
-            } else if (row <= 5) {
-              rowName = `Fan Pit ${row - 1}`;
-              category = "fan-pit";
-            } else {
-              rowName = "General";
-              category = "general";
-            }
-            
-            return {
-              id: `${rowName.toLowerCase().replace(' ', '-')}-${seatNumber}`,
-              row: rowName,
-              number: seatNumber,
-              category,
-              status: isOccupied ? 'sold' : 'available',
-              price: category === 'vip' ? 20800 : category === 'fan-pit' ? 15000 : 10000
-            };
-          });
-          
-          setSeatMap({
-            ...data.data.seatmap,
-            seats: mockSeats
-          });
+          setSeatMap(data.data.seatmap);
         } catch (error) {
           console.error('Error fetching seat map:', error);
         } finally {
@@ -79,29 +45,114 @@ const SeatSelectionPage = () => {
     fetchSeatMap();
   }, [id]);
 
-  // Sync global store with local state on mount
-  useEffect(() => {
-    if (selectedSeats.length > 0) {
-      setLocalSelectedSeats(selectedSeats);
+  const handleSeatSelect = (seats: Seat[]) => {
+    setSelectedSeats(seats);
+  };
+
+  const handleProceedToCheckout = async () => {
+    if (selectedSeats.length === 0 || !user) return;
+
+    setReserving(true);
+    try {
+      // Validate inputs
+      const isValidObjectId = /^[a-f\d]{24}$/i.test(id);
+      if (!isValidObjectId) {
+        throw new Error('Invalid event ID format');
+      }
+
+      if (!user._id || !/^[a-f\d]{24}$/i.test(user._id)) {
+        throw new Error('Invalid user ID format. Please log out and log back in.');
+      }
+
+      // Reserve seats for 5 minutes using the new seat utilities
+      const reservationPromises = selectedSeats.map(async (seat) => {
+        const seatNo = getSeatNo(seat.row, seat.number);
+
+        if (!seatNo || seatNo < 1) {
+          console.error(`Invalid seat number for seat ${seat.id}: ${seatNo}`);
+          return null;
+        }
+
+        try {
+          const reservation = await seatMapApi.reserveSeat({
+            eventId: id.toLowerCase(),
+            seatNo,
+            attendeeId: user._id,
+          });
+
+          return {
+            seatId: seat.id,
+            reservationId: reservation.data.reservationId,
+            expiresAt: new Date(reservation.data.expiresAt)
+          };
+        } catch (error: any) {
+          console.error(`Failed to reserve seat ${seat.id}:`, error);
+          // Log the actual error response for debugging
+          if (error.response) {
+            console.error('Error response:', error.response.data);
+          }
+          return null;
+        }
+      });
+
+      const reservationResults = await Promise.all(reservationPromises);
+      const validReservations = reservationResults.filter(result => result !== null);
+
+      if (validReservations.length > 0) {
+        // Set reservation data in global store
+        const reservationData = validReservations.map((r, index) => {
+          const seat = selectedSeats[index];
+          const seatNo = getSeatNo(seat.row, seat.number);
+          return {
+            reservationId: r.reservationId,
+            seatNo,
+            expiresAt: r.expiresAt.toISOString()
+          };
+        });
+        setReservations(reservationData);
+
+        // Clear and set selected seats in global store
+        clearSeats();
+        selectedSeats.forEach(seat => {
+          const seatNo = getSeatNo(seat.row, seat.number);
+          const backendSeat = {
+            seatNo,
+            status: seat.status,
+            price: seat.price,
+            category: seat.category
+          };
+          addSeat(backendSeat);
+        });
+
+        router.push('/checkout');
+      } else {
+        throw new Error('Failed to reserve any seats');
+      }
+    } catch (error: any) {
+      console.error('Error reserving seats:', error);
+      
+      // Show more specific error messages
+      let errorMessage = 'Failed to reserve seats. Please try again.';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors
+        const validationErrors = error.response.data.errors;
+        if (Array.isArray(validationErrors)) {
+          errorMessage = validationErrors.map((err: any) => err.msg || err.message).join(', ');
+        }
+      }
+      
+      alert(`Failed to reserve seats: ${errorMessage}`);
+    } finally {
+      setReserving(false);
     }
-  }, [selectedSeats]);
-
-  // Helper function to assign categories based on row
-  const getCategoryFromRow = (row: string) => {
-    const rowNum = parseInt(row);
-    if (rowNum <= 2) return 'vip';
-    if (rowNum <= 5) return 'fan-pit';
-    if (rowNum <= 8) return 'general';
-    return 'balcony';
   };
 
-  const handleSeatClick = async (seat: any) => {
-    // Since we're using the SeatMap component's internal state management,
-    // we don't need to handle individual seat clicks here anymore
-    // The SeatMap component handles selection internally and calls onSeatSelect
-  };
-
-  const totalPrice = localSelectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+  const totalPrice = selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
 
   if (loading) return <Loader />;
 
@@ -261,23 +312,12 @@ const SeatSelectionPage = () => {
 
                 <SeatMap
                   eventId={id}
-                  selectedSeats={selectedSeats.map(seat => convertBackendSeatToFrontend(seat.seatNo, seat.category, seat.price, seat.status))}
-                  onSeatSelect={(seats) => {
-                    // Update local state
-                    setLocalSelectedSeats(seats);
-                    // Convert Seat[] to BackendSeat[] for store
-                    clearSeats();
-                    seats.forEach(seat => {
-                      // Convert back to BackendSeat format
-                      const backendSeat = {
-                        seatNo: (seat.row === 'VIP' ? 0 : seat.row.includes('Fan Pit') ? (parseInt(seat.row.split(' ')[2]) - 1) * 10 : 40) + seat.number,
-                        status: seat.status,
-                        price: seat.price,
-                        category: seat.category
-                      };
-                      addSeat(backendSeat);
-                    });
-                  }}
+                  selectedSeats={selectedSeats}
+                  onSeatSelect={handleSeatSelect}
+                  venueCapacity={seatMap?.seats?.total || 60}
+                  occupiedSeats={seatMap?.seats?.occupiedSeats || []}
+                  reservedSeats={seatMap?.seats?.reservedSeats || []}
+                  pricing={seatMap?.pricing || []}
                 />
               </div>
             </motion.div>
@@ -299,7 +339,7 @@ const SeatSelectionPage = () => {
                     <span>Booking Summary</span>
                   </h3>
 
-                  {localSelectedSeats.length > 0 ? (
+                  {selectedSeats.length > 0 ? (
                     <motion.div
                       className="space-y-4"
                       initial={{ opacity: 0 }}
@@ -307,7 +347,7 @@ const SeatSelectionPage = () => {
                       transition={{ duration: 0.5 }}
                     >
                       <div className="space-y-3">
-                        {localSelectedSeats.map((seat, index) => (
+                        {selectedSeats.map((seat, index) => (
                           <motion.div
                             key={seat.id}
                             className="flex justify-between items-center p-3 bg-gray-700/50 rounded-lg border border-gray-600/50"
@@ -321,7 +361,7 @@ const SeatSelectionPage = () => {
                               {seat.category === 'fan-pit' && <Zap className="w-4 h-4 text-cyan-400" />}
                               {seat.category === 'general' && <Ticket className="w-4 h-4 text-green-400" />}
                               {seat.category === 'balcony' && <ArrowUpCircle className="w-4 h-4 text-indigo-400" />}
-                              
+
                               <div>
                                 <span className="text-white font-medium">Seat {seat.row}{seat.number}</span>
                                 <p className="text-xs text-gray-400 capitalize">{seat.category.replace('-', ' ')}</p>
@@ -343,53 +383,16 @@ const SeatSelectionPage = () => {
                           <span className="text-green-400">{formatPrice(totalPrice)}</span>
                         </div>
 
-                        {expiresAt && (
-                          <motion.div
-                            className="text-center p-3 bg-yellow-500/20 rounded-lg border border-yellow-500/30 mb-4"
-                            animate={{ boxShadow: ['0 0 0 rgba(234,179,8,0)', '0 0 20px rgba(234,179,8,0.3)', '0 0 0 rgba(234,179,8,0)'] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          >
-                            <div className="flex items-center justify-center space-x-2 text-yellow-400 mb-1">
-                              <Clock className="w-4 h-4" />
-                              <span className="font-semibold">Reservation Timer</span>
-                            </div>
-                            <div className="text-white font-mono text-lg">
-                              {formatCountdown(new Date(expiresAt))}
-                            </div>
-                          </motion.div>
-                        )}
-
                         <motion.button
-                          onClick={async () => {
-                            try {
-                              // For now, reserve the first seat as an example
-                              // TODO: Handle multiple seat reservations properly
-                              const firstSeat = localSelectedSeats[0];
-                              if (firstSeat) {
-                                const reservation = await seatMapApi.reserveSeat({
-                                  eventId: id as string,
-                                  seatNo: firstSeat.seatNo || 1, // Need to calculate seatNo properly
-                                  attendeeId: 'current-user-id', // TODO: Get from auth context
-                                });
-                                setReservation(reservation.data.reservationId, reservation.data.expiresAt);
-                                
-                                // Sync selected seats to global store
-                                clearSeats(); // Clear any existing seats first
-                                localSelectedSeats.forEach(seat => addSeat(seat));
-                                
-                                router.push('/checkout');
-                              }
-                            } catch (error) {
-                              console.error('Error creating reservation:', error);
-                            }
-                          }}
+                          onClick={handleProceedToCheckout}
                           className="group relative w-full bg-gradient-to-r from-green-500 via-green-400 to-cyan-500 text-black py-4 rounded-xl font-bold text-lg shadow-2xl hover:shadow-green-500/50 transition-all duration-300 overflow-hidden"
                           whileHover={{ scale: 1.02, y: -2 }}
                           whileTap={{ scale: 0.98 }}
+                          disabled={selectedSeats.length === 0 || reserving}
                         >
                           <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
                           <div className="relative flex items-center justify-center space-x-3">
-                            <span>Proceed to Checkout</span>
+                            <span>{reserving ? "Reserving..." : "Proceed to Checkout"}</span>
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                           </div>
                         </motion.button>

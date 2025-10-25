@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ticketsApi } from '../api/ticketsApi';
+import { paymentApi } from '../api/paymentApi';
 import { useAuth } from '../context/AuthContext';
 import { useSeatStore } from '../store/useSeatStore';
 import { CreditCard, AlertCircle, CheckCircle2, Zap, User, Calendar, MapPin } from 'lucide-react';
@@ -9,10 +9,11 @@ import { CreditCard, AlertCircle, CheckCircle2, Zap, User, Calendar, MapPin } fr
 const CheckoutForm = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const { selectedSeats, reservationId, clearSeats, clearReservation } = useSeatStore();
+  const { selectedSeats, reservations, clearSeats, clearReservation } = useSeatStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle');
+  const [paymentStatus, setPaymentStatus] = useState<'idle' | 'initiating' | 'processing' | 'success' | 'error'>('idle');
+  const [paymentId, setPaymentId] = useState<string | null>(null);
 
   // Form state
   const [cardDetails, setCardDetails] = useState({
@@ -51,46 +52,110 @@ const CheckoutForm = () => {
       return;
     }
 
-    if (!reservationId || !user) {
-      setError('Missing reservation or user information');
+    if (reservations.length === 0 || !user) {
+      setError('Missing reservations or user information. Please go back and select seats.');
+      return;
+    }
+
+    if (selectedSeats.length !== reservations.length) {
+      setError('Seat selection and reservations mismatch. Please try again.');
       return;
     }
 
     setLoading(true);
     setError(null);
-    setPaymentStatus('processing');
+    setPaymentStatus('initiating');
 
     try {
-      // Simulate payment processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Step 1: Initiate payments for all reservations
+      const paymentPromises = reservations.map(async (reservation, index) => {
+        try {
+          const seat = selectedSeats[index];
+          if (!seat) {
+            throw new Error(`Seat not found for reservation ${reservation.reservationId}`);
+          }
 
-      // Create tickets after successful payment
-      const ticketPromises = selectedSeats.map(seat => 
-        ticketsApi.issueTicket({
-          attendeeId: user._id,
-          eventId: 'event_123', // This should come from the reservation/context
-          seatNo: seat.seatNo,
-          category: seat.category as 'standard' | 'vip' | 'premium',
-          price: seat.price
-        })
-      );
-      
-      const tickets = await Promise.all(ticketPromises);
+          return await paymentApi.initiatePayment({
+            ticketId: reservation.reservationId, // This is actually the ticket ID from reservation
+            paymentMethod: 'card',
+            amount: seat.price
+          });
+        } catch (error: any) {
+          console.error(`Failed to initiate payment for reservation ${reservation.reservationId}:`, error);
+          throw new Error(`Payment initiation failed for seat ${reservation.seatNo}: ${error.response?.data?.message || error.message}`);
+        }
+      });
 
-      setPaymentStatus('success');
+      const paymentResults = await Promise.allSettled(paymentPromises);
+      const successfulPayments = paymentResults.filter(result => result.status === 'fulfilled');
+      const failedPayments = paymentResults.filter(result => result.status === 'rejected');
 
-      // Clear seat selection and reservation
-      clearSeats();
-      clearReservation();
+      if (successfulPayments.length === 0) {
+        throw new Error('Failed to initiate any payments. Please try again.');
+      }
 
-      // Redirect to tickets page after a short delay
-      setTimeout(() => {
-        router.push('/tickets');
-      }, 2000);
+      if (failedPayments.length > 0) {
+        console.warn(`${failedPayments.length} payment initiations failed:`, failedPayments);
+        // Continue with successful payments but warn user
+        setError(`${failedPayments.length} payment(s) failed to initiate. Proceeding with ${successfulPayments.length} successful payment(s).`);
+      }
 
-    } catch (err) {
+      const paymentIds = successfulPayments.map((result: any) => result.value.data.paymentId);
+
+      if (paymentIds.length > 0) {
+        setPaymentId(paymentIds[0]); // Store first payment ID for status tracking
+        setPaymentStatus('processing');
+
+        // Step 2: Process payments
+        const processPromises = paymentIds.map(async (id: string, index: number) => {
+          try {
+            const result = await paymentApi.processPayment(id, {
+              cardDetails: {
+                number: cardDetails.number.replace(/\s/g, ''),
+                expiry: cardDetails.expiry,
+                cvv: cardDetails.cvv,
+                name: cardDetails.name
+              }
+            });
+            return result;
+          } catch (error: any) {
+            console.error(`Payment processing failed for payment ${id}:`, error);
+            throw new Error(`Payment processing failed for seat ${reservations[index]?.seatNo || 'unknown'}: ${error.response?.data?.message || error.message}`);
+          }
+        });
+
+        const processResults = await Promise.allSettled(processPromises);
+        const successfulProcesses = processResults.filter(result => result.status === 'fulfilled');
+        const failedProcesses = processResults.filter(result => result.status === 'rejected');
+
+        // Check if all payments were successful
+        if (successfulProcesses.length === paymentIds.length) {
+          setPaymentStatus('success');
+
+          // Clear seat selection and reservation
+          clearSeats();
+          clearReservation();
+
+          // Redirect to tickets page after a short delay
+          setTimeout(() => {
+            router.push('/tickets');
+          }, 2000);
+        } else if (successfulProcesses.length > 0) {
+          // Partial success - some payments succeeded
+          setPaymentStatus('error');
+          setError(`${successfulProcesses.length} payment(s) succeeded, but ${failedProcesses.length} failed. Please contact support with payment ID: ${paymentIds[0]}`);
+        } else {
+          // All payments failed
+          setPaymentStatus('error');
+          throw new Error('All payments failed. Please check your card details and try again.');
+        }
+      } else {
+        throw new Error('Failed to initiate payments');
+      }
+
+    } catch (err: any) {
       console.error('Payment failed:', err);
-      setError('Payment failed. Please try again.');
+      setError(err.message || err.response?.data?.message || 'Payment failed. Please try again.');
       setPaymentStatus('error');
     } finally {
       setLoading(false);
@@ -202,6 +267,22 @@ const CheckoutForm = () => {
       )}
 
       {/* Payment Status */}
+      {paymentStatus === 'initiating' && (
+        <motion.div
+          className="flex items-center justify-center space-x-3 p-4 bg-blue-500/20 border border-blue-500/30 rounded-xl"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <motion.div
+            className="w-5 h-5 border-2 border-blue-400 border-t-transparent rounded-full"
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          />
+          <span className="text-blue-400 font-semibold">Initiating payment...</span>
+        </motion.div>
+      )}
+
       {paymentStatus === 'processing' && (
         <motion.div
           className="flex items-center justify-center space-x-3 p-4 bg-yellow-500/20 border border-yellow-500/30 rounded-xl"

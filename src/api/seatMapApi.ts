@@ -16,7 +16,9 @@ export interface SeatmapData {
     total: number;
     available: number;
     occupied: number;
+    reserved: number;
     occupiedSeats: number[];
+    reservedSeats: number[];
   };
   pricing: Array<{
     category: string;

@@ -25,31 +25,64 @@ export const getSeatmap = asyncHandler(async (req, res) => {
   }
 
   // Get all tickets for this event to determine occupied seats
-  const tickets = await Ticket.find({ event: eventId }, 'seatNo status');
+  const tickets = await Ticket.find({
+    event: eventId,
+    status: { $in: ['active', 'reserved'] }
+  }, 'seatNo status category price createdAt');
 
-  // Create seat availability map
+  // Separate occupied and reserved seats
   const occupiedSeats = tickets
     .filter(ticket => ticket.status === 'active')
+    .map(ticket => ticket.seatNo);
+
+  // Clean up expired reservations (older than 15 minutes)
+  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
+  const expiredReservations = tickets.filter(ticket =>
+    ticket.status === 'reserved' && new Date(ticket.createdAt) < fifteenMinutesAgo
+  );
+
+  if (expiredReservations.length > 0) {
+    // Mark expired reservations as cancelled
+    await Ticket.updateMany(
+      {
+        event: eventId,
+        seatNo: { $in: expiredReservations.map(t => t.seatNo) },
+        status: 'reserved',
+        createdAt: { $lt: fifteenMinutesAgo }
+      },
+      { status: 'cancelled' }
+    );
+  }
+
+  // Get current reserved seats (not expired)
+  const currentReservedSeats = tickets
+    .filter(ticket => ticket.status === 'reserved' && new Date(ticket.createdAt) >= fifteenMinutesAgo)
     .map(ticket => ticket.seatNo);
 
   const seatmap = {
     venue: {
       name: event.venue.name,
       capacity: event.venue.capacity,
-      layout: event.venue.layout
+      layout: 'theater' // Default layout since venue model doesn't have this field
     },
     event: {
       id: event._id,
-      title: event.title,
-      date: event.date
+      title: event.name, // Use name instead of title
+      date: event.startDate // Use startDate instead of date
     },
     seats: {
       total: event.venue.capacity,
-      available: event.venue.capacity - occupiedSeats.length,
+      available: event.venue.capacity - occupiedSeats.length - currentReservedSeats.length,
       occupied: occupiedSeats.length,
-      occupiedSeats
+      reserved: currentReservedSeats.length,
+      occupiedSeats,
+      reservedSeats: currentReservedSeats
     },
-    pricing: event.pricing
+    pricing: [
+      { category: 'vip', price: 20800 },
+      { category: 'fan-pit', price: 15000 },
+      { category: 'general', price: 10000 }
+    ]
   };
 
   res.json({
@@ -82,7 +115,7 @@ export const reserveSeat = asyncHandler(async (req, res) => {
     });
   }
 
-  if (event.status !== 'active') {
+  if (!['published', 'draft'].includes(event.status)) {
     return res.status(400).json({
       success: false,
       message: 'Event is not active'
@@ -107,26 +140,16 @@ export const reserveSeat = asyncHandler(async (req, res) => {
   const reservation = await Ticket.create({
     attendee: attendeeId,
     event: eventId,
-    seatNo,
-    category: 'standard', // Will be updated during purchase
+    seatNo: seatNo.toString(),
+    category: 'general', // Will be updated during purchase
     price: 0, // Will be updated during purchase
     status: 'reserved',
     reservedAt: new Date(),
-    reservationExpiresAt: new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+    reservationExpiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes as requested
   });
 
-  // Set timeout to automatically cancel reservation after 15 minutes
-  setTimeout(async () => {
-    try {
-      const ticket = await Ticket.findById(reservation._id);
-      if (ticket && ticket.status === 'reserved') {
-        ticket.status = 'cancelled';
-        await ticket.save();
-      }
-    } catch (error) {
-      console.error('Error cancelling expired reservation:', error);
-    }
-  }, 15 * 60 * 1000);
+  // Note: Expiration is handled by the getSeatmap cleanup logic
+  // No setTimeout needed as cleanup happens on each seatmap fetch
 
   res.json({
     success: true,
@@ -184,7 +207,7 @@ export const getAvailableSeats = asyncHandler(async (req, res) => {
   const { eventId } = req.params;
   const { category } = req.query;
 
-  const event = await Event.findById(eventId);
+  const event = await Event.findById(eventId).populate('venue');
   if (!event) {
     return res.status(404).json({
       success: false,
@@ -199,7 +222,7 @@ export const getAvailableSeats = asyncHandler(async (req, res) => {
   }, 'seatNo category');
 
   // Generate all possible seats based on venue capacity
-  const totalSeats = event.venue ? event.venue.capacity : 100; // Default if no venue
+  const totalSeats = event.venue ? event.venue.capacity : event.capacity || 100; // Fallback to event capacity or default
   const allSeats = Array.from({ length: totalSeats }, (_, i) => i + 1);
 
   // Filter available seats

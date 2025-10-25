@@ -27,7 +27,7 @@ export const createReservation = asyncHandler(async (req, res) => {
     });
   }
 
-  if (event.status !== 'active') {
+  if (event.status !== 'published') {
     return res.status(400).json({
       success: false,
       message: 'Event is not active'

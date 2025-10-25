@@ -1,16 +1,43 @@
 import express from 'express';
 import { body } from 'express-validator';
 import {
+  initiatePayment,
+  processPayment,
   processMockPayment,
   getUserPayments,
   getPaymentStats,
   processRefund,
-  getPaymentDetails
+  getPaymentDetails,
+  cancelPayment
 } from '../controllers/paymentController.js';
 import { authenticateToken } from '../middleware/authMiddleware.js';
 import { requireRole } from '../middleware/roleMiddleware.js';
 
 const router = express.Router();
+
+// @route   POST /api/v1/payments/initiate
+// @desc    Initiate payment for a ticket
+// @access  Private
+router.post(
+  '/initiate',
+  authenticateToken,
+  [
+    body('ticketId').isMongoId().withMessage('Valid ticket ID is required'),
+    body('paymentMethod').isIn(['card', 'upi', 'netbanking', 'wallet', 'cod']).withMessage('Invalid payment method'),
+    body('amount').isFloat({ min: 0 }).withMessage('Amount must be a positive number')
+  ],
+  initiatePayment
+);
+
+// @route   POST /api/v1/payments/:paymentId/process
+// @desc    Process payment
+// @access  Private
+router.post('/:paymentId/process', authenticateToken, processPayment);
+
+// @route   DELETE /api/v1/payments/:paymentId
+// @desc    Cancel payment
+// @access  Private
+router.delete('/:paymentId', authenticateToken, cancelPayment);
 
 // @route   POST /api/v1/payments/mock
 // @desc    Process mock payment

@@ -16,6 +16,8 @@ import ticketRoutes from './routes/ticketRoutes.js';
 import seatmapRoutes from './routes/seatmapRoutes.js';
 import reservationRoutes from './routes/reservationRoutes.js';
 import organizerRoutes from './routes/organizerRoutes.js';
+import venueRoutes from './routes/venueRoutes.js';
+import attendeeRoutes from './routes/attendeeRoutes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -67,6 +69,8 @@ app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/seatmap', seatmapRoutes);
 app.use('/api/v1/reservations', reservationRoutes);
 app.use('/api/v1/organizer', organizerRoutes);
+app.use('/api/v1/venues', venueRoutes);
+app.use('/api/v1/attendees', attendeeRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
