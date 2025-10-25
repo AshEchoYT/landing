@@ -53,6 +53,15 @@ const ticketSchema = new mongoose.Schema({
     type: String,
     sparse: true // Allows null values but ensures uniqueness when present
   },
+  reservedAt: {
+    type: Date
+  },
+  reservationExpiresAt: {
+    type: Date
+  },
+  issuedAt: {
+    type: Date
+  },
   metadata: {
     row: String,
     section: String,
@@ -93,8 +102,6 @@ const ticketSchema = new mongoose.Schema({
 // Indexes for better query performance
 ticketSchema.index({ event: 1 });
 ticketSchema.index({ attendee: 1 });
-ticketSchema.index({ qrCode: 1 }, { sparse: true });
-ticketSchema.index({ ticketNumber: 1 }, { sparse: true });
 ticketSchema.index({ status: 1 });
 ticketSchema.index({ category: 1 });
 

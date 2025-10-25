@@ -9,7 +9,7 @@ import { CreditCard, AlertCircle, CheckCircle2, Zap, User, Calendar, MapPin } fr
 const CheckoutForm = () => {
   const router = useRouter();
   const { user } = useAuth();
-  const { selectedSeats, reservations, clearSeats, clearReservation } = useSeatStore();
+  const { selectedSeats, clearSeats } = useSeatStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paymentStatus, setPaymentStatus] = useState<'idle' | 'initiating' | 'processing' | 'success' | 'error'>('idle');
@@ -52,13 +52,8 @@ const CheckoutForm = () => {
       return;
     }
 
-    if (reservations.length === 0 || !user) {
-      setError('Missing reservations or user information. Please go back and select seats.');
-      return;
-    }
-
-    if (selectedSeats.length !== reservations.length) {
-      setError('Seat selection and reservations mismatch. Please try again.');
+    if (selectedSeats.length === 0 || !user) {
+      setError('No seats selected or user information missing. Please go back and select seats.');
       return;
     }
 
@@ -67,22 +62,22 @@ const CheckoutForm = () => {
     setPaymentStatus('initiating');
 
     try {
-      // Step 1: Initiate payments for all reservations
-      const paymentPromises = reservations.map(async (reservation, index) => {
+      // Step 1: Initiate payments for all booked seats (tickets)
+      const paymentPromises = selectedSeats.map(async (seat) => {
         try {
-          const seat = selectedSeats[index];
-          if (!seat) {
-            throw new Error(`Seat not found for reservation ${reservation.reservationId}`);
+          if (!seat.ticketId) {
+            throw new Error(`Ticket ID not found for seat ${seat.seatNo}`);
           }
 
           return await paymentApi.initiatePayment({
-            ticketId: reservation.reservationId, // This is actually the ticket ID from reservation
+            ticketId: seat.ticketId,
             paymentMethod: 'card',
-            amount: seat.price
+            amount: seat.price,
+            category: seat.category
           });
         } catch (error: any) {
-          console.error(`Failed to initiate payment for reservation ${reservation.reservationId}:`, error);
-          throw new Error(`Payment initiation failed for seat ${reservation.seatNo}: ${error.response?.data?.message || error.message}`);
+          console.error(`Failed to initiate payment for seat ${seat.seatNo}:`, error);
+          throw new Error(`Payment initiation failed for seat ${seat.seatNo}: ${error.response?.data?.message || error.message}`);
         }
       });
 
@@ -120,7 +115,7 @@ const CheckoutForm = () => {
             return result;
           } catch (error: any) {
             console.error(`Payment processing failed for payment ${id}:`, error);
-            throw new Error(`Payment processing failed for seat ${reservations[index]?.seatNo || 'unknown'}: ${error.response?.data?.message || error.message}`);
+            throw new Error(`Payment processing failed for seat ${selectedSeats[index]?.seatNo || 'unknown'}: ${error.response?.data?.message || error.message}`);
           }
         });
 
@@ -132,9 +127,8 @@ const CheckoutForm = () => {
         if (successfulProcesses.length === paymentIds.length) {
           setPaymentStatus('success');
 
-          // Clear seat selection and reservation
+          // Clear seat selection
           clearSeats();
-          clearReservation();
 
           // Redirect to tickets page after a short delay
           setTimeout(() => {

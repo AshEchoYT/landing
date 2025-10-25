@@ -2,8 +2,7 @@ import express from 'express';
 import { body } from 'express-validator';
 import {
   getSeatmap,
-  reserveSeat,
-  cancelReservation,
+  bookSeat,
   getAvailableSeats,
   checkSeatAvailability,
   getSeatPricing,
@@ -19,24 +18,19 @@ const router = express.Router();
 // @access  Public
 router.get('/:eventId', getSeatmap);
 
-// @route   POST /api/v1/seatmap/reserve
-// @desc    Reserve seat temporarily
+// @route   POST /api/v1/seatmap/book
+// @desc    Book seat directly
 // @access  Private
 router.post(
-  '/reserve',
+  '/book',
   authenticateToken,
   [
     body('eventId').isMongoId().withMessage('Valid event ID is required'),
     body('seatNo').isInt({ min: 1 }).withMessage('Valid seat number is required'),
     body('attendeeId').isMongoId().withMessage('Valid attendee ID is required')
   ],
-  reserveSeat
+  bookSeat
 );
-
-// @route   DELETE /api/v1/seatmap/reserve/:reservationId
-// @desc    Cancel seat reservation
-// @access  Private
-router.delete('/reserve/:reservationId', authenticateToken, cancelReservation);
 
 // @route   GET /api/v1/seatmap/:eventId/available
 // @desc    Get available seats for an event
@@ -56,16 +50,6 @@ router.get('/:eventId/pricing', getSeatPricing);
 // @route   PUT /api/v1/seatmap/:eventId/pricing
 // @desc    Update seat pricing (Organizer only)
 // @access  Private (Organizer)
-router.put(
-  '/:eventId/pricing',
-  authenticateToken,
-  requireRole(['organizer', 'admin']),
-  [
-    body('pricing').isArray().withMessage('Pricing must be an array'),
-    body('pricing.*.category').notEmpty().withMessage('Category is required for each pricing item'),
-    body('pricing.*.price').isFloat({ min: 0 }).withMessage('Price must be a positive number')
-  ],
-  updateSeatPricing
-);
+router.put('/:eventId/pricing', authenticateToken, updateSeatPricing);
 
 export default router;

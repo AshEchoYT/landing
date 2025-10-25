@@ -92,7 +92,6 @@ const paymentSchema = new mongoose.Schema({
 paymentSchema.index({ ticket: 1 });
 paymentSchema.index({ attendee: 1 });
 paymentSchema.index({ event: 1 });
-paymentSchema.index({ transactionId: 1 });
 paymentSchema.index({ status: 1 });
 paymentSchema.index({ expiresAt: 1 });
 
@@ -108,18 +107,6 @@ paymentSchema.virtual('formattedAmount').get(function() {
 // Virtual for payment age
 paymentSchema.virtual('age').get(function() {
   return Math.round((Date.now() - this.initiatedAt.getTime()) / (1000 * 60)); // minutes
-});
-
-// Pre-save middleware to generate transaction ID
-paymentSchema.pre('save', async function(next) {
-  if (this.isNew && !this.transactionId) {
-    // Generate unique transaction ID: TXN + timestamp + random
-    const timestamp = Date.now().toString().slice(-8);
-    const random = Math.random().toString(36).substring(2, 6).toUpperCase();
-    this.transactionId = `TXN${timestamp}${random}`;
-  }
-
-  next();
 });
 
 // Instance method to mark as completed

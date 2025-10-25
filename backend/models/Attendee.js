@@ -57,7 +57,6 @@ const attendeeSchema = new mongoose.Schema({
 });
 
 // Index for better query performance
-attendeeSchema.index({ email: 1 });
 attendeeSchema.index({ role: 1 });
 
 // Virtual for full name (if needed)

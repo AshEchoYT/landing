@@ -54,8 +54,7 @@ export const API_ENDPOINTS = {
   // Seatmap
   SEATMAP: {
     GET: '/seatmap',
-    RESERVE: '/seatmap/reserve',
-    CANCEL_RESERVATION: '/seatmap/reserve',
+    BOOK: '/seatmap/book',
     AVAILABLE: '/seatmap',
     AVAILABILITY: '/seatmap',
     PRICING: '/seatmap',

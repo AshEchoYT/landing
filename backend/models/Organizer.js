@@ -80,7 +80,6 @@ const organizerSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-organizerSchema.index({ email: 1 });
 organizerSchema.index({ isVerified: 1 });
 organizerSchema.index({ isActive: 1 });
 

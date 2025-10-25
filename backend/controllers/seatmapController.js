@@ -27,37 +27,18 @@ export const getSeatmap = asyncHandler(async (req, res) => {
   // Get all tickets for this event to determine occupied seats
   const tickets = await Ticket.find({
     event: eventId,
-    status: { $in: ['active', 'reserved'] }
-  }, 'seatNo status category price createdAt');
+    status: 'active'
+  }, 'seatNo status category price');
 
-  // Separate occupied and reserved seats
-  const occupiedSeats = tickets
-    .filter(ticket => ticket.status === 'active')
-    .map(ticket => ticket.seatNo);
+  const occupiedSeats = tickets.map(ticket => ticket.seatNo);
 
-  // Clean up expired reservations (older than 15 minutes)
-  const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000);
-  const expiredReservations = tickets.filter(ticket =>
-    ticket.status === 'reserved' && new Date(ticket.createdAt) < fifteenMinutesAgo
-  );
-
-  if (expiredReservations.length > 0) {
-    // Mark expired reservations as cancelled
-    await Ticket.updateMany(
-      {
-        event: eventId,
-        seatNo: { $in: expiredReservations.map(t => t.seatNo) },
-        status: 'reserved',
-        createdAt: { $lt: fifteenMinutesAgo }
-      },
-      { status: 'cancelled' }
-    );
-  }
-
-  // Get current reserved seats (not expired)
-  const currentReservedSeats = tickets
-    .filter(ticket => ticket.status === 'reserved' && new Date(ticket.createdAt) >= fifteenMinutesAgo)
-    .map(ticket => ticket.seatNo);
+  // Use event pricing if available, otherwise use defaults
+  const pricing = event.pricing && event.pricing.length > 0 ? event.pricing : [
+    { category: 'vip', price: 20800 },
+    { category: 'fan-pit', price: 15000 },
+    { category: 'general', price: 10000 },
+    { category: 'balcony', price: 12500 }
+  ];
 
   const seatmap = {
     venue: {
@@ -72,17 +53,13 @@ export const getSeatmap = asyncHandler(async (req, res) => {
     },
     seats: {
       total: event.venue.capacity,
-      available: event.venue.capacity - occupiedSeats.length - currentReservedSeats.length,
+      available: event.venue.capacity - occupiedSeats.length,
       occupied: occupiedSeats.length,
-      reserved: currentReservedSeats.length,
+      reserved: 0, // No reservations anymore
       occupiedSeats,
-      reservedSeats: currentReservedSeats
+      reservedSeats: [] // No reserved seats anymore
     },
-    pricing: [
-      { category: 'vip', price: 20800 },
-      { category: 'fan-pit', price: 15000 },
-      { category: 'general', price: 10000 }
-    ]
+    pricing
   };
 
   res.json({
@@ -91,10 +68,10 @@ export const getSeatmap = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Reserve seat temporarily
-// @route   POST /api/v1/seatmap/reserve
+// @desc    Book seat directly
+// @route   POST /api/v1/seatmap/book
 // @access  Private
-export const reserveSeat = asyncHandler(async (req, res) => {
+export const bookSeat = asyncHandler(async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -104,7 +81,16 @@ export const reserveSeat = asyncHandler(async (req, res) => {
     });
   }
 
-  const { eventId, seatNo, attendeeId } = req.body;
+  const { eventId, seatNo, attendeeId, category = 'general', price = 0 } = req.body;
+
+  // Validate seatNo is a positive integer
+  const seatNumber = parseInt(seatNo);
+  if (isNaN(seatNumber) || seatNumber < 1) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid seat number'
+    });
+  }
 
   // Check if event exists
   const event = await Event.findById(eventId);
@@ -115,18 +101,26 @@ export const reserveSeat = asyncHandler(async (req, res) => {
     });
   }
 
-  if (!['published', 'draft'].includes(event.status)) {
+  if (event.status !== 'published') {
     return res.status(400).json({
       success: false,
       message: 'Event is not active'
     });
   }
 
+  // Check if seat number is within venue capacity
+  if (event.venue && seatNumber > event.venue.capacity) {
+    return res.status(400).json({
+      success: false,
+      message: 'Seat number exceeds venue capacity'
+    });
+  }
+
   // Check if seat is available
   const existingTicket = await Ticket.findOne({
     event: eventId,
-    seatNo,
-    status: { $in: ['active', 'reserved'] }
+    seatNo: seatNumber,
+    status: 'active'
   });
 
   if (existingTicket) {
@@ -136,67 +130,35 @@ export const reserveSeat = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create temporary reservation ticket
-  const reservation = await Ticket.create({
+  // Create active ticket directly
+  const ticket = await Ticket.create({
     attendee: attendeeId,
     event: eventId,
-    seatNo: seatNo.toString(),
-    category: 'general', // Will be updated during purchase
-    price: 0, // Will be updated during purchase
-    status: 'reserved',
-    reservedAt: new Date(),
-    reservationExpiresAt: new Date(Date.now() + 5 * 60 * 1000) // 5 minutes as requested
+    seatNo: seatNumber,
+    category,
+    price,
+    status: 'active',
+    issuedAt: new Date()
   });
 
-  // Note: Expiration is handled by the getSeatmap cleanup logic
-  // No setTimeout needed as cleanup happens on each seatmap fetch
-
-  res.json({
-    success: true,
-    message: 'Seat reserved successfully',
-    data: {
-      reservationId: reservation._id,
-      seatNo,
-      expiresAt: reservation.reservationExpiresAt
+  // Update event analytics
+  await Event.findByIdAndUpdate(eventId, {
+    $inc: {
+      'analytics.ticketsSold': 1,
+      'analytics.attendees': 1,
+      'analytics.revenue': price
     }
   });
-});
-
-// @desc    Cancel seat reservation
-// @route   DELETE /api/v1/seatmap/reserve/:reservationId
-// @access  Private
-export const cancelReservation = asyncHandler(async (req, res) => {
-  const { reservationId } = req.params;
-
-  const reservation = await Ticket.findById(reservationId);
-  if (!reservation) {
-    return res.status(404).json({
-      success: false,
-      message: 'Reservation not found'
-    });
-  }
-
-  // Check if user owns the reservation
-  if (reservation.attendee.toString() !== req.user._id.toString()) {
-    return res.status(403).json({
-      success: false,
-      message: 'Not authorized to cancel this reservation'
-    });
-  }
-
-  if (reservation.status !== 'reserved') {
-    return res.status(400).json({
-      success: false,
-      message: 'Reservation is not active'
-    });
-  }
-
-  reservation.status = 'cancelled';
-  await reservation.save();
 
   res.json({
     success: true,
-    message: 'Reservation cancelled successfully'
+    message: 'Seat booked successfully',
+    data: {
+      ticketId: ticket._id,
+      seatNo: seatNumber,
+      category,
+      price
+    }
   });
 });
 
@@ -218,7 +180,7 @@ export const getAvailableSeats = asyncHandler(async (req, res) => {
   // Get all occupied seats
   const occupiedSeats = await Ticket.find({
     event: eventId,
-    status: { $in: ['active', 'reserved'] }
+    status: 'active'
   }, 'seatNo category');
 
   // Generate all possible seats based on venue capacity
@@ -230,13 +192,11 @@ export const getAvailableSeats = asyncHandler(async (req, res) => {
     !occupiedSeats.some(ticket => ticket.seatNo === seatNo)
   );
 
-  // Filter by category if specified
+  // Filter by category if specified (this is a simplified implementation)
+  // In a real system, you'd have seat categories mapped to specific seat ranges
   if (category) {
-    const categorySeats = occupiedSeats.filter(ticket => ticket.category === category);
-    const occupiedCategorySeats = categorySeats.map(ticket => ticket.seatNo);
-    availableSeats = availableSeats.filter(seatNo =>
-      !occupiedCategorySeats.includes(seatNo)
-    );
+    // For now, just return all available seats since we don't have category mapping
+    // This would need to be enhanced based on venue layout
   }
 
   res.json({
@@ -257,6 +217,14 @@ export const getAvailableSeats = asyncHandler(async (req, res) => {
 export const checkSeatAvailability = asyncHandler(async (req, res) => {
   const { eventId, seatNo } = req.params;
 
+  const seatNumber = parseInt(seatNo);
+  if (isNaN(seatNumber) || seatNumber < 1) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid seat number'
+    });
+  }
+
   const event = await Event.findById(eventId);
   if (!event) {
     return res.status(404).json({
@@ -267,8 +235,8 @@ export const checkSeatAvailability = asyncHandler(async (req, res) => {
 
   const ticket = await Ticket.findOne({
     event: eventId,
-    seatNo: parseInt(seatNo),
-    status: { $in: ['active', 'reserved'] }
+    seatNo: seatNumber,
+    status: 'active'
   });
 
   const isAvailable = !ticket;
@@ -277,10 +245,9 @@ export const checkSeatAvailability = asyncHandler(async (req, res) => {
     success: true,
     data: {
       eventId,
-      seatNo: parseInt(seatNo),
+      seatNo: seatNumber,
       isAvailable,
-      status: ticket ? ticket.status : 'available',
-      reservedUntil: ticket && ticket.status === 'reserved' ? ticket.reservationExpiresAt : null
+      status: ticket ? ticket.status : 'available'
     }
   });
 });

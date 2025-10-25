@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Crown, Zap, Users, Building2 } from "lucide-react";
 import { formatPrice } from "../utils/formatters";
 import { Seat } from "@/types/seat";
@@ -22,7 +21,6 @@ interface SeatMapProps {
   onSeatSelect: (seats: Seat[]) => void;
   venueCapacity?: number;
   occupiedSeats?: number[];
-  reservedSeats?: number[];
   pricing?: Array<{ category: string; price: number }>;
 }
 
@@ -32,10 +30,8 @@ export function SeatMap({
   onSeatSelect,
   venueCapacity = 60,
   occupiedSeats = [],
-  reservedSeats = [],
   pricing = []
 }: SeatMapProps) {
-  const [reservations, setReservations] = useState<{[key: string]: {reservationId: string, expiresAt: Date}}>({});
   const { user } = useAuth();
 
   // Generate all seats for the venue using the new utility
@@ -54,14 +50,8 @@ export function SeatMap({
       for (let seatNum = 1; seatNum <= 10; seatNum++) {
         const seatNo = getSeatNo(row, seatNum);
         const isOccupied = occupiedSeats.includes(seatNo);
-        const isReserved = reservedSeats.includes(seatNo);
 
-        let status: "available" | "reserved" | "sold" = "available";
-        if (isOccupied) {
-          status = "sold";
-        } else if (isReserved) {
-          status = "reserved";
-        }
+        const status: "available" | "sold" = isOccupied ? "sold" : "available";
 
         seats.push({
           id: `${row.toLowerCase().replace(' ', '-')}-${seatNum}`,
@@ -75,7 +65,7 @@ export function SeatMap({
     });
 
     return seats;
-  }, [venueCapacity, occupiedSeats, reservedSeats, pricing]);
+  }, [venueCapacity, occupiedSeats, pricing]);
 
   // Get selected seat IDs
   const selectedSeatIds = externalSelectedSeats.map(seat => seat.id);
@@ -83,9 +73,6 @@ export function SeatMap({
   // Handle seat click
   const handleSeatClick = (seat: Seat) => {
     if (seat.status === "sold") return;
-
-    // If seat is reserved by someone else, don't allow selection
-    if (seat.status === "reserved" && !reservations[seat.id]) return;
 
     const isCurrentlySelected = selectedSeatIds.includes(seat.id);
     let newSelection: Seat[];
@@ -101,22 +88,6 @@ export function SeatMap({
     onSeatSelect(newSelection);
   };
 
-  // Handle reservation - simplified to just update local state
-  const handleReserveSeats = async () => {
-    if (selectedSeatIds.length === 0 || !user) {
-      console.log('No seats selected or user not logged in');
-      return;
-    }
-
-    console.log('User object:', user);
-    console.log('Event ID:', eventId);
-    console.log('Selected seats:', externalSelectedSeats);
-
-    // The actual reservation will be handled by the parent component
-    // This component just manages the UI state
-    console.log('Seats ready for reservation - parent component will handle API calls');
-  };
-
   const categories = [
     { name: "VIP", icon: Crown, color: "text-purple-400", bg: "bg-purple-500/20", border: "border-purple-500/30" },
     { name: "Fan Pit", icon: Zap, color: "text-cyan-400", bg: "bg-cyan-500/20", border: "border-cyan-500/30" },
@@ -125,8 +96,6 @@ export function SeatMap({
 
   const getSeatColor = (seat: Seat) => {
     const isSelected = selectedSeatIds.includes(seat.id);
-    const reservation = reservations[seat.id];
-    const isReservedByUser = reservation && reservation.expiresAt > new Date();
 
     if (isSelected) {
       return "bg-gradient-to-br from-green-400 to-green-500 border-green-400 text-black scale-110 shadow-lg shadow-green-500/50";
@@ -134,13 +103,6 @@ export function SeatMap({
 
     if (seat.status === "sold") {
       return "bg-red-500/80 border-red-500/60 text-white cursor-not-allowed";
-    }
-
-    if (seat.status === "reserved") {
-      if (isReservedByUser) {
-        return "bg-orange-500/80 border-orange-500/60 text-white animate-pulse";
-      }
-      return "bg-yellow-500/80 border-yellow-500/60 text-white cursor-not-allowed";
     }
 
     const categoryColors = {
@@ -189,7 +151,7 @@ export function SeatMap({
                 <div className="flex-1 grid grid-cols-10 gap-2">
                   {rowSeats.map(seat => {
                     const isSelected = selectedSeatIds.includes(seat.id);
-                    const canSelect = seat.status === "available" || (seat.status === "reserved" && reservations[seat.id]);
+                    const canSelect = seat.status === "available";
 
                     return (
                       <button
@@ -223,12 +185,6 @@ export function SeatMap({
                 {formatPrice(totalPrice)}
               </div>
             </div>
-            <Button
-              onClick={handleReserveSeats}
-              className="bg-gradient-to-r from-green-500 to-cyan-500 hover:from-green-400 hover:to-cyan-400 text-black font-semibold shadow-lg"
-            >
-              Reserve Seats
-            </Button>
           </div>
         )}
       </div>

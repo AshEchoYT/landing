@@ -5,6 +5,7 @@ export interface InitiatePaymentData {
   ticketId: string;
   paymentMethod: 'card' | 'upi' | 'netbanking' | 'wallet' | 'cod';
   amount: number;
+  category?: string;
 }
 
 export interface ProcessPaymentData {

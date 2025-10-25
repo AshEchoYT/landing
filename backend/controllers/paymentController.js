@@ -17,7 +17,7 @@ export const initiatePayment = asyncHandler(async (req, res) => {
     });
   }
 
-  const { ticketId, paymentMethod, amount } = req.body;
+  const { ticketId, paymentMethod, amount, category } = req.body;
 
   // Find the ticket
   const ticket = await Ticket.findById(ticketId).populate('event');
@@ -44,13 +44,20 @@ export const initiatePayment = asyncHandler(async (req, res) => {
     });
   }
 
-  // Check if payment amount matches ticket price
-  if (amount !== ticket.price) {
+  // Check if ticket hasn't expired
+  if (ticket.reservationExpiresAt && ticket.reservationExpiresAt < new Date()) {
+    ticket.status = 'cancelled';
+    await ticket.save();
     return res.status(400).json({
       success: false,
-      message: 'Payment amount does not match ticket price'
+      message: 'Reservation has expired'
     });
   }
+
+  // Update ticket with payment details
+  ticket.price = amount;
+  ticket.category = category || ticket.category || 'general';
+  await ticket.save();
 
   // Check if payment already exists for this ticket
   const existingPayment = await Payment.findOne({ ticket: ticketId, status: { $in: ['pending', 'completed'] } });
@@ -62,13 +69,19 @@ export const initiatePayment = asyncHandler(async (req, res) => {
   }
 
   // Create payment record
+  // Generate unique transaction ID
+  const timestamp = Date.now().toString().slice(-8);
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const transactionId = `TXN${timestamp}${random}`;
+
   const payment = await Payment.create({
     ticket: ticketId,
     attendee: req.user._id,
     event: ticket.event._id,
     amount,
     paymentMethod,
-    status: 'pending'
+    status: 'pending',
+    transactionId
   });
 
   res.status(201).json({
@@ -387,6 +400,11 @@ export const processMockPayment = asyncHandler(async (req, res) => {
   await new Promise(resolve => setTimeout(resolve, 2000));
 
   // Create payment record
+  // Generate unique transaction ID
+  const timestamp = Date.now().toString().slice(-8);
+  const random = Math.random().toString(36).substring(2, 6).toUpperCase();
+  const transactionId = `TXN${timestamp}${random}`;
+
   const payment = await Payment.create({
     ticket: ticketId,
     attendee: attendeeId,
@@ -394,7 +412,8 @@ export const processMockPayment = asyncHandler(async (req, res) => {
     amount,
     paymentMethod: mode.toLowerCase(),
     status: 'completed',
-    completedAt: new Date()
+    completedAt: new Date(),
+    transactionId
   });
 
   // Update ticket with payment reference and mark as issued

@@ -24,8 +24,8 @@ const SeatSelectionPage = () => {
   const [loading, setLoading] = useState(true);
   const [showLegend, setShowLegend] = useState(false);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
-  const [reserving, setReserving] = useState(false);
-  const { setReservations, clearSeats, addSeat } = useSeatStore();
+  const [booking, setBooking] = useState(false);
+  const { clearSeats, addSeat } = useSeatStore();
   const { user } = useAuth();
 
   useEffect(() => {
@@ -52,7 +52,7 @@ const SeatSelectionPage = () => {
   const handleProceedToCheckout = async () => {
     if (selectedSeats.length === 0 || !user) return;
 
-    setReserving(true);
+    setBooking(true);
     try {
       // Validate inputs
       const isValidObjectId = /^[a-f\d]{24}$/i.test(id);
@@ -64,8 +64,8 @@ const SeatSelectionPage = () => {
         throw new Error('Invalid user ID format. Please log out and log back in.');
       }
 
-      // Reserve seats for 5 minutes using the new seat utilities
-      const reservationPromises = selectedSeats.map(async (seat) => {
+      // Book seats directly
+      const bookingPromises = selectedSeats.map(async (seat) => {
         const seatNo = getSeatNo(seat.row, seat.number);
 
         if (!seatNo || seatNo < 1) {
@@ -74,19 +74,23 @@ const SeatSelectionPage = () => {
         }
 
         try {
-          const reservation = await seatMapApi.reserveSeat({
+          const booking = await seatMapApi.bookSeat({
             eventId: id.toLowerCase(),
             seatNo,
             attendeeId: user._id,
+            category: seat.category,
+            price: seat.price
           });
 
           return {
             seatId: seat.id,
-            reservationId: reservation.data.reservationId,
-            expiresAt: new Date(reservation.data.expiresAt)
+            ticketId: booking.data.ticketId,
+            seatNo,
+            category: seat.category,
+            price: seat.price
           };
         } catch (error: any) {
-          console.error(`Failed to reserve seat ${seat.id}:`, error);
+          console.error(`Failed to book seat ${seat.id}:`, error);
           // Log the actual error response for debugging
           if (error.response) {
             console.error('Error response:', error.response.data);
@@ -95,44 +99,32 @@ const SeatSelectionPage = () => {
         }
       });
 
-      const reservationResults = await Promise.all(reservationPromises);
-      const validReservations = reservationResults.filter(result => result !== null);
+      const bookingResults = await Promise.all(bookingPromises);
+      const validBookings = bookingResults.filter(result => result !== null);
 
-      if (validReservations.length > 0) {
-        // Set reservation data in global store
-        const reservationData = validReservations.map((r, index) => {
-          const seat = selectedSeats[index];
-          const seatNo = getSeatNo(seat.row, seat.number);
-          return {
-            reservationId: r.reservationId,
-            seatNo,
-            expiresAt: r.expiresAt.toISOString()
-          };
-        });
-        setReservations(reservationData);
-
-        // Clear and set selected seats in global store
+      if (validBookings.length > 0) {
+        // Clear and set selected seats in global store with ticket IDs
         clearSeats();
-        selectedSeats.forEach(seat => {
-          const seatNo = getSeatNo(seat.row, seat.number);
+        validBookings.forEach(booking => {
           const backendSeat = {
-            seatNo,
-            status: seat.status,
-            price: seat.price,
-            category: seat.category
+            seatNo: booking.seatNo,
+            status: 'active',
+            price: booking.price,
+            category: booking.category,
+            ticketId: booking.ticketId
           };
           addSeat(backendSeat);
         });
 
         router.push('/checkout');
       } else {
-        throw new Error('Failed to reserve any seats');
+        throw new Error('Failed to book any seats');
       }
     } catch (error: any) {
-      console.error('Error reserving seats:', error);
+      console.error('Error booking seats:', error);
       
       // Show more specific error messages
-      let errorMessage = 'Failed to reserve seats. Please try again.';
+      let errorMessage = 'Failed to book seats. Please try again.';
       
       if (error.message) {
         errorMessage = error.message;
@@ -146,9 +138,9 @@ const SeatSelectionPage = () => {
         }
       }
       
-      alert(`Failed to reserve seats: ${errorMessage}`);
+      alert(`Failed to book seats: ${errorMessage}`);
     } finally {
-      setReserving(false);
+      setBooking(false);
     }
   };
 
@@ -263,10 +255,6 @@ const SeatSelectionPage = () => {
                           <span className="text-green-400">Selected</span>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <div className="w-4 h-4 bg-yellow-500 rounded"></div>
-                          <span className="text-yellow-400">Reserved</span>
-                        </div>
-                        <div className="flex items-center space-x-2">
                           <div className="w-4 h-4 bg-gray-600 rounded"></div>
                           <span className="text-gray-400">Sold</span>
                         </div>
@@ -316,7 +304,6 @@ const SeatSelectionPage = () => {
                   onSeatSelect={handleSeatSelect}
                   venueCapacity={seatMap?.seats?.total || 60}
                   occupiedSeats={seatMap?.seats?.occupiedSeats || []}
-                  reservedSeats={seatMap?.seats?.reservedSeats || []}
                   pricing={seatMap?.pricing || []}
                 />
               </div>
@@ -388,11 +375,11 @@ const SeatSelectionPage = () => {
                           className="group relative w-full bg-gradient-to-r from-green-500 via-green-400 to-cyan-500 text-black py-4 rounded-xl font-bold text-lg shadow-2xl hover:shadow-green-500/50 transition-all duration-300 overflow-hidden"
                           whileHover={{ scale: 1.02, y: -2 }}
                           whileTap={{ scale: 0.98 }}
-                          disabled={selectedSeats.length === 0 || reserving}
+                          disabled={selectedSeats.length === 0 || booking}
                         >
                           <div className="absolute inset-0 bg-gradient-to-r from-cyan-500 via-purple-500 to-pink-500 opacity-0 group-hover:opacity-30 transition-opacity duration-300"></div>
                           <div className="relative flex items-center justify-center space-x-3">
-                            <span>{reserving ? "Reserving..." : "Proceed to Checkout"}</span>
+                            <span>{booking ? "Booking..." : "Proceed to Checkout"}</span>
                             <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                           </div>
                         </motion.button>

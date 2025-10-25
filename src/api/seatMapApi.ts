@@ -16,9 +16,7 @@ export interface SeatmapData {
     total: number;
     available: number;
     occupied: number;
-    reserved: number;
     occupiedSeats: number[];
-    reservedSeats: number[];
   };
   pricing: Array<{
     category: string;
@@ -26,17 +24,12 @@ export interface SeatmapData {
   }>;
 }
 
-export interface ReservationData {
+export interface BookSeatData {
   eventId: string;
   seatNo: number;
   attendeeId: string;
-  duration?: number;
-}
-
-export interface Reservation {
-  reservationId: string;
-  seatNo: number;
-  expiresAt: string;
+  category?: string;
+  price?: number;
 }
 
 export const seatMapApi = {
@@ -45,13 +38,8 @@ export const seatMapApi = {
     return response.data;
   },
 
-  reserveSeat: async (reservationData: ReservationData): Promise<{ success: boolean; message: string; data: Reservation }> => {
-    const response = await apiClient.post(API_ENDPOINTS.SEATMAP.RESERVE, reservationData);
-    return response.data;
-  },
-
-  cancelReservation: async (reservationId: string): Promise<{ success: boolean; message: string }> => {
-    const response = await apiClient.delete(`${API_ENDPOINTS.SEATMAP.CANCEL_RESERVATION}/${reservationId}`);
+  bookSeat: async (bookData: BookSeatData): Promise<{ success: boolean; message: string; data: { ticketId: string; seatNo: number; category: string; price: number } }> => {
+    const response = await apiClient.post(API_ENDPOINTS.SEATMAP.BOOK, bookData);
     return response.data;
   },
 
@@ -61,7 +49,7 @@ export const seatMapApi = {
     return response.data;
   },
 
-  checkSeatAvailability: async (eventId: string, seatNo: number): Promise<{ success: boolean; data: { eventId: string; seatNo: number; isAvailable: boolean; status: string; reservedUntil?: string } }> => {
+  checkSeatAvailability: async (eventId: string, seatNo: number): Promise<{ success: boolean; data: { eventId: string; seatNo: number; isAvailable: boolean; status: string } }> => {
     const response = await apiClient.get(`${API_ENDPOINTS.SEATMAP.AVAILABILITY}/${eventId}/seat/${seatNo}`);
     return response.data;
   },

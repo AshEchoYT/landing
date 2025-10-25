@@ -24,7 +24,8 @@ router.post(
   [
     body('ticketId').isMongoId().withMessage('Valid ticket ID is required'),
     body('paymentMethod').isIn(['card', 'upi', 'netbanking', 'wallet', 'cod']).withMessage('Invalid payment method'),
-    body('amount').isFloat({ min: 0 }).withMessage('Amount must be a positive number')
+    body('amount').isFloat({ min: 0 }).withMessage('Amount must be a positive number'),
+    body('category').optional().isIn(['vip', 'fan-pit', 'general', 'balcony']).withMessage('Invalid ticket category')
   ],
   initiatePayment
 );

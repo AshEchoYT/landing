@@ -14,6 +14,7 @@ export interface BackendSeat {
   category: string;
   price: number;
   status: string;
+  ticketId?: string;
 }
 
 // Utility function to convert backend seat format to frontend format

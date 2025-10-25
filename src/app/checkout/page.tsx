@@ -15,6 +15,13 @@ const CheckoutPage = () => {
   const router = useRouter();
   const { selectedSeats } = useSeatStore();
 
+  // Redirect if no seats selected
+  React.useEffect(() => {
+    if (selectedSeats.length === 0) {
+      router.push('/events');
+    }
+  }, [selectedSeats, router]);
+
   // Convert BackendSeat to Seat for display
   const displaySeats = selectedSeats.map(seat => 
     convertBackendSeatToFrontend(seat.seatNo, seat.category, seat.price, seat.status)
