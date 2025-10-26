@@ -97,6 +97,10 @@ const venueSchema = new mongoose.Schema({
     isBooked: { type: Boolean, default: false },
     bookedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'Event' }
   }],
+  vendors: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Vendor'
+  }],
   rating: {
     type: Number,
     min: 0,

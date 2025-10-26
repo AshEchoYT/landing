@@ -97,6 +97,18 @@ export const API_ENDPOINTS = {
     STATS: '/venues',
   },
 
+  // Vendors
+  VENDORS: {
+    LIST: '/vendors',
+    DETAIL: '/vendors',
+    CREATE: '/vendors',
+    UPDATE: '/vendors',
+    DELETE: '/vendors',
+    SEARCH: '/vendors/search',
+    BY_SERVICE_TYPE: '/vendors/service',
+    STATS: '/vendors',
+  },
+
   // Attendees
   ATTENDEES: {
     PROFILE: '/attendees/profile',

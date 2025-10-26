@@ -51,7 +51,7 @@ const StatCard = ({ icon: Icon, value, label, delay }: { icon: any; value: strin
 export const StatsSection = () => {
   return (
     <section className="relative py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-7xl mx-auto relative z-10">
+      <div className="max-w-screen-2xl mx-auto relative z-10">
         <motion.div
           className="text-center mb-16"
           initial={{ opacity: 0, y: 50 }}

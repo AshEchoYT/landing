@@ -77,7 +77,7 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue }) => {
           whileHover={{
             scale: 1.1,
             boxShadow: '0 0 20px rgba(251, 191, 36, 0.6)',
-            rotate: [0, -5, 5, 0]
+            rotate: [0, -5]
           }}
         >
           <Star className="w-3 h-3 fill-current" />
@@ -132,7 +132,7 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue }) => {
             <motion.div
               animate={{
                 scale: [1, 1.2, 1],
-                rotate: [0, 10, -10, 0]
+                rotate: [0, 10]
               }}
               transition={{ duration: 3, repeat: Infinity }}
             >
@@ -166,7 +166,7 @@ const VenueCard: React.FC<VenueCardProps> = ({ venue }) => {
               whileHover={{
                 scale: 1.1,
                 boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)',
-                rotate: [0, -2, 2, 0]
+                rotate: [0, -2]
               }}
             >
               {facility}

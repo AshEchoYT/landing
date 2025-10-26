@@ -4,9 +4,10 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
-import Footer from '../../components/Footer';
 import { eventsApi, CreateEventData } from '../../api/eventsApi';
 import { venueApi, Venue } from '../../api/venueApi';
+import { organizerApi } from '../../api/organizerApi';
+import { StaffMember, Sponsor } from '../../api/organizerApi';
 import { Upload, X, Plus, Calendar, MapPin, DollarSign, Users, Tag, Image as ImageIcon } from 'lucide-react';
 
 const OrganizerDashboard = () => {
@@ -14,6 +15,25 @@ const OrganizerDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
   const [venues, setVenues] = useState<Venue[]>([]);
   const [loading, setLoading] = useState(false);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [sponsors, setSponsors] = useState<Sponsor[]>([]);
+  const [showAddStaffModal, setShowAddStaffModal] = useState(false);
+  const [showAddSponsorModal, setShowAddSponsorModal] = useState(false);
+  const [staffForm, setStaffForm] = useState({
+    name: '',
+    email: '',
+    role: '',
+    permissions: [] as string[]
+  });
+  const [sponsorForm, setSponsorForm] = useState({
+    name: '',
+    email: '',
+    company: '',
+    sponsorshipLevel: '',
+    amount: 0,
+    benefits: [] as string[]
+  });
   const [eventForm, setEventForm] = useState<CreateEventData>({
     title: '',
     description: '',
@@ -31,6 +51,17 @@ const OrganizerDashboard = () => {
   const [imagePreview, setImagePreview] = useState<string>('');
 
   useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const response = await organizerApi.getDashboard();
+        if (response.success) {
+          setDashboardData(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      }
+    };
+
     const fetchVenues = async () => {
       try {
         const response = await venueApi.getVenues({ limit: 100 });
@@ -53,10 +84,17 @@ const OrganizerDashboard = () => {
       }
     };
 
+    // Always fetch dashboard data
+    fetchDashboardData();
+
     if (activeTab === 'create') {
       fetchVenues();
     } else if (activeTab === 'manage' && user?._id) {
       fetchMyEvents();
+    } else if (activeTab === 'staff') {
+      fetchStaff();
+    } else if (activeTab === 'sponsors') {
+      fetchSponsors();
     }
   }, [activeTab, user?._id]);
 
@@ -102,6 +140,73 @@ const OrganizerDashboard = () => {
         ...prev,
         tags: [...(prev.tags || []), tag]
       }));
+    }
+  };
+
+  const fetchStaff = async () => {
+    try {
+      const response = await organizerApi.getStaff();
+      if (response.success) {
+        setStaff(response.data.staff);
+      }
+    } catch (error) {
+      console.error('Error fetching staff:', error);
+    }
+  };
+
+  const handleAddStaff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await organizerApi.addStaffMember(staffForm);
+      if (response.success) {
+        setStaff([...staff, response.data.staff]);
+        setShowAddStaffModal(false);
+        setStaffForm({ name: '', email: '', role: '', permissions: [] });
+        alert('Staff member added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding staff:', error);
+      alert('Failed to add staff member');
+    }
+  };
+
+  const handleRemoveStaff = async (staffId: string) => {
+    if (confirm('Are you sure you want to remove this staff member?')) {
+      try {
+        await organizerApi.removeStaffMember(staffId);
+        setStaff(staff.filter(s => s._id !== staffId));
+        alert('Staff member removed successfully!');
+      } catch (error) {
+        console.error('Error removing staff:', error);
+        alert('Failed to remove staff member');
+      }
+    }
+  };
+
+  const fetchSponsors = async () => {
+    try {
+      const response = await organizerApi.getSponsors();
+      if (response.success) {
+        setSponsors(response.data.sponsors);
+      }
+    } catch (error) {
+      console.error('Error fetching sponsors:', error);
+    }
+  };
+
+  const handleAddSponsor = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await organizerApi.addSponsor(sponsorForm);
+      if (response.success) {
+        setSponsors([...sponsors, response.data.sponsor]);
+        setShowAddSponsorModal(false);
+        setSponsorForm({ name: '', email: '', company: '', sponsorshipLevel: '', amount: 0, benefits: [] });
+        alert('Sponsor added successfully!');
+      }
+    } catch (error) {
+      console.error('Error adding sponsor:', error);
+      alert('Failed to add sponsor');
     }
   };
 
@@ -163,6 +268,8 @@ const OrganizerDashboard = () => {
     { id: 'overview', label: 'Overview' },
     { id: 'create', label: 'Create Event' },
     { id: 'manage', label: 'Manage Events' },
+    { id: 'staff', label: 'Staff' },
+    { id: 'sponsors', label: 'Sponsors' },
     { id: 'analytics', label: 'Analytics' },
   ];
 
@@ -170,7 +277,7 @@ const OrganizerDashboard = () => {
     <div className="min-h-screen bg-gray-900">
       <Navbar />
       <div className="pt-20 pb-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-screen-2xl mx-auto px-6 sm:px-8 lg:px-12">
           <motion.h1
             className="text-3xl font-bold mb-8 text-green-400"
             initial={{ opacity: 0, y: -20 }}
@@ -212,7 +319,7 @@ const OrganizerDashboard = () => {
                       transition={{ type: 'spring', stiffness: 300 }}
                     >
                       <h3 className="text-lg font-semibold text-green-400">Total Events</h3>
-                      <p className="text-3xl font-bold text-white">{stats.totalEvents}</p>
+                      <p className="text-3xl font-bold text-white">{dashboardData?.metrics?.totalEvents || 0}</p>
                     </motion.div>
                     <motion.div
                       className="bg-gray-700 p-6 rounded-lg"
@@ -220,7 +327,7 @@ const OrganizerDashboard = () => {
                       transition={{ type: 'spring', stiffness: 300 }}
                     >
                       <h3 className="text-lg font-semibold text-green-400">Total Tickets Sold</h3>
-                      <p className="text-3xl font-bold text-white">{stats.totalTicketsSold}</p>
+                      <p className="text-3xl font-bold text-white">{dashboardData?.metrics?.totalTicketsSold || 0}</p>
                     </motion.div>
                     <motion.div
                       className="bg-gray-700 p-6 rounded-lg"
@@ -228,7 +335,7 @@ const OrganizerDashboard = () => {
                       transition={{ type: 'spring', stiffness: 300 }}
                     >
                       <h3 className="text-lg font-semibold text-green-400">Revenue</h3>
-                      <p className="text-3xl font-bold text-white">${stats.totalRevenue.toFixed(2)}</p>
+                      <p className="text-3xl font-bold text-white">${(dashboardData?.metrics?.totalRevenue || 0).toFixed(2)}</p>
                     </motion.div>
                   </div>
                 </motion.div>
@@ -574,6 +681,193 @@ const OrganizerDashboard = () => {
                 </motion.div>
               )}
 
+              {activeTab === 'staff' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-semibold text-white">Staff Management</h2>
+                    <button
+                      onClick={() => setShowAddStaffModal(true)}
+                      className="bg-gradient-to-r from-green-500 to-cyan-500 text-black px-4 py-2 rounded-lg font-semibold hover:from-green-400 hover:to-cyan-400 transition-all duration-150 shadow-lg hover:shadow-green-500/50"
+                    >
+                      Add Staff Member
+                    </button>
+                  </div>
+
+                  {staff.length > 0 ? (
+                    <div className="space-y-4">
+                      {staff.map((member, index) => (
+                        <motion.div
+                          key={member._id}
+                          className="bg-gray-700/50 p-6 rounded-lg border border-gray-600"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                        >
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-start space-x-4">
+                                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-cyan-500 rounded-full flex items-center justify-center">
+                                  <span className="text-black font-bold text-lg">
+                                    {member.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-xl font-semibold text-white mb-2">{member.name}</h3>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-green-400">Email:</span>
+                                      <span>{member.email}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-green-400">Role:</span>
+                                      <span>{member.role}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-green-400">Status:</span>
+                                      <span className={`px-2 py-1 rounded-full text-xs ${
+                                        member.isActive ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'
+                                      }`}>
+                                        {member.isActive ? 'Active' : 'Inactive'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-2">
+                                    <span className="text-green-400 text-sm">Permissions:</span>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {member.permissions.map(permission => (
+                                        <span
+                                          key={permission}
+                                          className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs"
+                                        >
+                                          {permission}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 lg:mt-0 lg:ml-6 flex gap-3">
+                              <button
+                                onClick={() => handleRemoveStaff(member._id)}
+                                className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/30 transition-colors"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 text-lg mb-4">No staff members found</div>
+                      <p className="text-gray-500">Add your first staff member to get started!</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
+              {activeTab === 'sponsors' && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                >
+                  <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-2xl font-semibold text-white">Sponsor Management</h2>
+                    <button
+                      onClick={() => setShowAddSponsorModal(true)}
+                      className="bg-gradient-to-r from-green-500 to-cyan-500 text-black px-4 py-2 rounded-lg font-semibold hover:from-green-400 hover:to-cyan-400 transition-all duration-150 shadow-lg hover:shadow-green-500/50"
+                    >
+                      Add Sponsor
+                    </button>
+                  </div>
+
+                  {sponsors.length > 0 ? (
+                    <div className="space-y-4">
+                      {sponsors.map((sponsor, index) => (
+                        <motion.div
+                          key={sponsor._id}
+                          className="bg-gray-700/50 p-6 rounded-lg border border-gray-600"
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                        >
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-start space-x-4">
+                                <div className="w-12 h-12 bg-gradient-to-br from-green-400 to-cyan-500 rounded-full flex items-center justify-center">
+                                  <span className="text-black font-bold text-lg">
+                                    {sponsor.name.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="flex-1">
+                                  <h3 className="text-xl font-semibold text-white mb-2">{sponsor.name}</h3>
+                                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-300">
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-green-400">Company:</span>
+                                      <span>{sponsor.company}</span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-green-400">Level:</span>
+                                      <span className={`px-2 py-1 rounded-full text-xs ${
+                                        sponsor.sponsorshipLevel === 'platinum' ? 'bg-purple-500/20 text-purple-400' :
+                                        sponsor.sponsorshipLevel === 'gold' ? 'bg-yellow-500/20 text-yellow-400' :
+                                        sponsor.sponsorshipLevel === 'silver' ? 'bg-gray-500/20 text-gray-400' :
+                                        'bg-blue-500/20 text-blue-400'
+                                      }`}>
+                                        {sponsor.sponsorshipLevel.charAt(0).toUpperCase() + sponsor.sponsorshipLevel.slice(1)}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center space-x-2">
+                                      <span className="text-green-400">Amount:</span>
+                                      <span>${sponsor.amount.toLocaleString()}</span>
+                                    </div>
+                                  </div>
+                                  <div className="mt-2">
+                                    <span className="text-green-400 text-sm">Benefits:</span>
+                                    <div className="flex flex-wrap gap-1 mt-1">
+                                      {sponsor.benefits.map(benefit => (
+                                        <span
+                                          key={benefit}
+                                          className="bg-green-500/20 text-green-400 px-2 py-1 rounded text-xs"
+                                        >
+                                          {benefit}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-4 lg:mt-0 lg:ml-6 flex gap-3">
+                              <button
+                                className="bg-blue-500/20 text-blue-400 px-4 py-2 rounded-lg hover:bg-blue-500/30 transition-colors"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                className="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg hover:bg-red-500/30 transition-colors"
+                              >
+                                Remove
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="text-gray-400 text-lg mb-4">No sponsors found</div>
+                      <p className="text-gray-500">Add your first sponsor to get started!</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+
               {activeTab === 'analytics' && (
                 <motion.div
                   initial={{ opacity: 0 }}
@@ -589,7 +883,226 @@ const OrganizerDashboard = () => {
           </div>
         </div>
       </div>
-      <Footer />
+
+      {/* Add Staff Modal */}
+      {showAddStaffModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            className="bg-gray-800 rounded-2xl p-6 w-full max-w-md border border-green-500/20"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <h3 className="text-xl font-bold text-white mb-6">Add Staff Member</h3>
+            <form onSubmit={handleAddStaff} className="space-y-4">
+              <div>
+                <label className="block text-white mb-2 font-medium">Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={staffForm.name}
+                  onChange={(e) => setStaffForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                  placeholder="Enter staff name"
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={staffForm.email}
+                  onChange={(e) => setStaffForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                  placeholder="Enter email address"
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Role *</label>
+                <select
+                  required
+                  value={staffForm.role}
+                  onChange={(e) => setStaffForm(prev => ({ ...prev, role: e.target.value }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                >
+                  <option value="">Select role</option>
+                  <option value="manager">Manager</option>
+                  <option value="coordinator">Coordinator</option>
+                  <option value="staff">Staff</option>
+                  <option value="volunteer">Volunteer</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Permissions</label>
+                <div className="space-y-2">
+                  {['manage_events', 'view_analytics', 'manage_staff', 'manage_vendors', 'manage_sponsors'].map(permission => (
+                    <label key={permission} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={staffForm.permissions.includes(permission)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setStaffForm(prev => ({
+                              ...prev,
+                              permissions: [...prev.permissions, permission]
+                            }));
+                          } else {
+                            setStaffForm(prev => ({
+                              ...prev,
+                              permissions: prev.permissions.filter(p => p !== permission)
+                            }));
+                          }
+                        }}
+                        className="rounded border-gray-500 text-green-500 focus:ring-green-500"
+                      />
+                      <span className="text-gray-300 text-sm capitalize">
+                        {permission.replace('_', ' ')}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddStaffModal(false)}
+                  className="flex-1 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-green-500 to-cyan-500 text-black py-3 rounded-lg font-semibold hover:from-green-400 hover:to-cyan-400 transition-all duration-150"
+                >
+                  Add Staff
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Add Sponsor Modal */}
+      {showAddSponsorModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <motion.div
+            className="bg-gray-800 rounded-2xl p-6 w-full max-w-md border border-green-500/20"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+          >
+            <h3 className="text-xl font-bold text-white mb-6">Add Sponsor</h3>
+            <form onSubmit={handleAddSponsor} className="space-y-4">
+              <div>
+                <label className="block text-white mb-2 font-medium">Contact Name *</label>
+                <input
+                  type="text"
+                  required
+                  value={sponsorForm.name}
+                  onChange={(e) => setSponsorForm(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                  placeholder="Enter contact name"
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Email *</label>
+                <input
+                  type="email"
+                  required
+                  value={sponsorForm.email}
+                  onChange={(e) => setSponsorForm(prev => ({ ...prev, email: e.target.value }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                  placeholder="Enter email address"
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Company *</label>
+                <input
+                  type="text"
+                  required
+                  value={sponsorForm.company}
+                  onChange={(e) => setSponsorForm(prev => ({ ...prev, company: e.target.value }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                  placeholder="Enter company name"
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Sponsorship Level *</label>
+                <select
+                  required
+                  value={sponsorForm.sponsorshipLevel}
+                  onChange={(e) => setSponsorForm(prev => ({ ...prev, sponsorshipLevel: e.target.value }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                >
+                  <option value="">Select level</option>
+                  <option value="platinum">Platinum</option>
+                  <option value="gold">Gold</option>
+                  <option value="silver">Silver</option>
+                  <option value="bronze">Bronze</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Sponsorship Amount *</label>
+                <input
+                  type="number"
+                  required
+                  min="0"
+                  step="0.01"
+                  value={sponsorForm.amount}
+                  onChange={(e) => setSponsorForm(prev => ({ ...prev, amount: parseFloat(e.target.value) }))}
+                  className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 border border-gray-500"
+                  placeholder="Enter sponsorship amount"
+                />
+              </div>
+              <div>
+                <label className="block text-white mb-2 font-medium">Benefits</label>
+                <div className="space-y-2">
+                  {['logo_on_website', 'booth_space', 'social_media_mention', 'event_program', 'vip_access'].map(benefit => (
+                    <label key={benefit} className="flex items-center space-x-2">
+                      <input
+                        type="checkbox"
+                        checked={sponsorForm.benefits.includes(benefit)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSponsorForm(prev => ({
+                              ...prev,
+                              benefits: [...prev.benefits, benefit]
+                            }));
+                          } else {
+                            setSponsorForm(prev => ({
+                              ...prev,
+                              benefits: prev.benefits.filter(b => b !== benefit)
+                            }));
+                          }
+                        }}
+                        className="rounded border-gray-500 text-green-500 focus:ring-green-500"
+                      />
+                      <span className="text-gray-300 text-sm capitalize">
+                        {benefit.replace('_', ' ')}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowAddSponsorModal(false)}
+                  className="flex-1 bg-gray-600 text-white py-3 rounded-lg hover:bg-gray-500 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-green-500 to-cyan-500 text-black py-3 rounded-lg font-semibold hover:from-green-400 hover:to-cyan-400 transition-all duration-150"
+                >
+                  Add Sponsor
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

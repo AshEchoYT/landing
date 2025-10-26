@@ -83,7 +83,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
           whileHover={{
             scale: 1.1,
             boxShadow: '0 0 20px rgba(34, 197, 94, 0.6)',
-            rotate: [0, -5, 5, 0]
+            rotate: [0, -5]
           }}
         >
           {formatPrice(lowestPrice)}
@@ -145,7 +145,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             <motion.div
               animate={{
                 scale: [1, 1.2, 1],
-                rotate: [0, 10, -10, 0]
+                rotate: [0, 10]
               }}
               transition={{ duration: 3, repeat: Infinity }}
             >
@@ -179,7 +179,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
               whileHover={{
                 scale: 1.1,
                 boxShadow: '0 0 10px rgba(34, 197, 94, 0.5)',
-                rotate: [0, -2, 2, 0]
+                rotate: [0, -2]
               }}
             >
               {tag}

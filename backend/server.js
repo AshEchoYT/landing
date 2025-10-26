@@ -17,6 +17,8 @@ import seatmapRoutes from './routes/seatmapRoutes.js';
 import organizerRoutes from './routes/organizerRoutes.js';
 import venueRoutes from './routes/venueRoutes.js';
 import attendeeRoutes from './routes/attendeeRoutes.js';
+import vendorRoutes from './routes/vendorRoutes.js';
+import vendorRoutes from './routes/vendorRoutes.js';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler.js';
@@ -68,6 +70,8 @@ app.use('/api/v1/tickets', ticketRoutes);
 app.use('/api/v1/seatmap', seatmapRoutes);
 app.use('/api/v1/organizer', organizerRoutes);
 app.use('/api/v1/venues', venueRoutes);
+app.use('/api/v1/attendees', attendeeRoutes);
+app.use('/api/v1/vendors', vendorRoutes);
 app.use('/api/v1/attendees', attendeeRoutes);
 
 // 404 handler

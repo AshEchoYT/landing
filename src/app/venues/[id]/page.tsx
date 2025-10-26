@@ -103,7 +103,7 @@ const VenueDetailPage = () => {
   if (error || !venue) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 pt-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-screen-2xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
           <motion.div
             className="text-center py-20"
             initial={{ opacity: 0, scale: 0.9 }}
@@ -125,7 +125,7 @@ const VenueDetailPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 pt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-screen-2xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
         {/* Back Button */}
         <motion.div
           className="mb-6"
@@ -261,6 +261,64 @@ const VenueDetailPage = () => {
                       <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                       <span>{fee.name}: {venue.pricing!.currency} {fee.amount} ({fee.type})</span>
                     </div>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Vendors */}
+            {venue.vendors && venue.vendors.length > 0 && (
+              <motion.div
+                className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <h2 className="text-2xl font-bold text-white mb-4">Associated Vendors</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {venue.vendors.map((vendor, index) => (
+                    <motion.div
+                      key={vendor._id}
+                      className="bg-gray-700/50 rounded-lg p-4 border border-gray-600/50"
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.7 + index * 0.1 }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-white mb-2">{vendor.name}</h3>
+                          <div className="space-y-1 text-sm text-gray-300">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-green-400">Service:</span>
+                              <span className="capitalize">{vendor.serviceType}</span>
+                            </div>
+                            {vendor.companyName && (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-green-400">Company:</span>
+                                <span>{vendor.companyName}</span>
+                              </div>
+                            )}
+                            {vendor.contactPerson && (
+                              <div className="flex items-center space-x-2">
+                                <span className="text-green-400">Contact:</span>
+                                <span>{vendor.contactPerson}</span>
+                              </div>
+                            )}
+                            <div className="flex items-center space-x-2">
+                              <span className="text-green-400">Phone:</span>
+                              <span>{vendor.contactNo}</span>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="text-green-400">Rating:</span>
+                              <div className="flex items-center space-x-1">
+                                <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                                <span>{vendor.rating.toFixed(1)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
                   ))}
                 </div>
               </motion.div>

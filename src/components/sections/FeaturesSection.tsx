@@ -27,7 +27,7 @@ const FeatureCard = ({ title, description, icon: Icon, delay }: { title: string;
 export const FeaturesSection = () => {
   return (
     <section className="relative py-20 px-4 sm:px-6 lg:px-8 bg-gray-900/20">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-screen-2xl mx-auto">
         <motion.div
           className="text-center mb-16"
           initial={{ opacity: 0, y: 50 }}

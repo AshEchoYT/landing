@@ -51,6 +51,16 @@ export interface Venue {
   }>;
   pricing?: VenuePricing;
   availability?: VenueAvailability[];
+  vendors?: Array<{
+    _id: string;
+    name: string;
+    serviceType: string;
+    contactNo: string;
+    email: string;
+    rating: number;
+    companyName?: string;
+    contactPerson?: string;
+  }>;
   rating: number;
   totalEvents: number;
   isActive: boolean;

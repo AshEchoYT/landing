@@ -4,6 +4,7 @@ import Attendee from './models/Attendee.js';
 import Organizer from './models/Organizer.js';
 import Venue from './models/Venue.js';
 import Event from './models/Event.js';
+import Vendor from './models/Vendor.js';
 
 // Load environment variables
 dotenv.config();
@@ -61,36 +62,447 @@ const seedDatabase = async () => {
       console.log('✅ Found existing organizer profile');
     }
 
-    // 3. Create or find test venue
-    let testVenue = await Venue.findOne({ name: 'Test Venue' });
-    if (!testVenue) {
-      testVenue = await Venue.create({
-        name: 'Test Venue',
+    // 3. Create 10 predefined venues
+    const venuesData = [
+      {
+        name: 'Grand Ballroom Mumbai',
         address: {
-          street: '456 Event Road',
+          street: 'Apollo Bunder',
           city: 'Mumbai',
           state: 'Maharashtra',
-          zipCode: '400002'
+          zipCode: '400001'
         },
-        capacity: 500,
-        facilities: ['AC', 'Parking', 'Sound System', 'Lighting', 'Stage'],
+        capacity: 1500,
+        facilities: ['AC', 'Parking', 'Sound System', 'Lighting', 'Stage', 'VIP Lounge', 'Food Court'],
         venueType: 'indoor',
         contactInfo: {
-          phone: '9876543211',
-          email: 'venue@test.com'
+          phone: '9876543210',
+          email: 'info@grandballroommumbai.com',
+          manager: {
+            name: 'Rajesh Kumar',
+            phone: '9876543211'
+          }
         },
         pricing: {
-          baseRate: 50000,
+          baseRate: 150000,
+          currency: 'INR',
+          additionalFees: [
+            { name: 'Sound System', amount: 25000, type: 'fixed' },
+            { name: 'Catering Setup', amount: 15000, type: 'fixed' }
+          ]
+        },
+        description: 'Luxurious indoor ballroom perfect for weddings, corporate events, and large gatherings. Features state-of-the-art sound and lighting systems.',
+        rating: 4.8,
+        totalEvents: 245
+      },
+      {
+        name: 'Beachfront Resort Goa',
+        address: {
+          street: 'Candolim Beach Road',
+          city: 'Goa',
+          state: 'Goa',
+          zipCode: '403515'
+        },
+        capacity: 800,
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Restrooms', 'Bar', 'Outdoor Space'],
+        venueType: 'outdoor',
+        contactInfo: {
+          phone: '9876543212',
+          email: 'events@beachfrontgoa.com'
+        },
+        pricing: {
+          baseRate: 200000,
           currency: 'INR'
         },
-        description: 'Modern indoor venue perfect for events'
-      });
-      console.log('✅ Created test venue');
-    } else {
-      console.log('✅ Found existing test venue');
+        description: 'Stunning beachfront venue with panoramic ocean views. Ideal for destination weddings and beach parties.',
+        rating: 4.6,
+        totalEvents: 189
+      },
+      {
+        name: 'Tech Hub Bangalore',
+        address: {
+          street: 'Whitefield Main Road',
+          city: 'Bangalore',
+          state: 'Karnataka',
+          zipCode: '560066'
+        },
+        capacity: 600,
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage', 'Projectors'],
+        venueType: 'hybrid',
+        contactInfo: {
+          phone: '9876543213',
+          email: 'bookings@techhubblr.com'
+        },
+        pricing: {
+          baseRate: 120000,
+          currency: 'INR'
+        },
+        description: 'Modern tech conference venue with cutting-edge AV equipment. Perfect for tech events, workshops, and seminars.',
+        rating: 4.7,
+        totalEvents: 156
+      },
+      {
+        name: 'Heritage Palace Jaipur',
+        address: {
+          street: 'City Palace Road',
+          city: 'Jaipur',
+          state: 'Rajasthan',
+          zipCode: '302002'
+        },
+        capacity: 400,
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Traditional Decor', 'Gardens'],
+        venueType: 'outdoor',
+        contactInfo: {
+          phone: '9876543214',
+          email: 'events@heritagepalace.com'
+        },
+        pricing: {
+          baseRate: 180000,
+          currency: 'INR'
+        },
+        description: 'Historic palace venue with traditional Rajasthani architecture. Ideal for cultural events and royal weddings.',
+        rating: 4.9,
+        totalEvents: 98
+      },
+      {
+        name: 'Skyline Tower Delhi',
+        address: {
+          street: 'Connaught Place',
+          city: 'Delhi',
+          state: 'Delhi',
+          zipCode: '110001'
+        },
+        capacity: 300,
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage', 'City View'],
+        venueType: 'indoor',
+        contactInfo: {
+          phone: '9876543215',
+          email: 'info@skylinedelhi.com'
+        },
+        pricing: {
+          baseRate: 100000,
+          currency: 'INR'
+        },
+        description: 'Premium rooftop venue with stunning city views. Perfect for corporate events and exclusive parties.',
+        rating: 4.5,
+        totalEvents: 134
+      },
+      {
+        name: 'Garden Resort Pune',
+        address: {
+          street: 'Lonavala Highway',
+          city: 'Pune',
+          state: 'Maharashtra',
+          zipCode: '410401'
+        },
+        capacity: 250,
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Gardens', 'Swimming Pool', 'Catering'],
+        venueType: 'outdoor',
+        contactInfo: {
+          phone: '9876543216',
+          email: 'events@gardenpune.com'
+        },
+        pricing: {
+          baseRate: 85000,
+          currency: 'INR'
+        },
+        description: 'Peaceful garden resort venue surrounded by nature. Great for intimate weddings and corporate retreats.',
+        rating: 4.4,
+        totalEvents: 87
+      },
+      {
+        name: 'Convention Center Chennai',
+        address: {
+          street: 'T. Nagar Main Road',
+          city: 'Chennai',
+          state: 'Tamil Nadu',
+          zipCode: '600017'
+        },
+        capacity: 1200,
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage', 'Multiple Halls'],
+        venueType: 'hybrid',
+        contactInfo: {
+          phone: '9876543217',
+          email: 'conventions@chennai-center.com'
+        },
+        pricing: {
+          baseRate: 140000,
+          currency: 'INR'
+        },
+        description: 'Large convention center with multiple configurable halls. Suitable for conferences, exhibitions, and large gatherings.',
+        rating: 4.6,
+        totalEvents: 203
+      },
+      {
+        name: 'Lake View Resort Kolkata',
+        address: {
+          street: 'Rabindra Sarobar',
+          city: 'Kolkata',
+          state: 'West Bengal',
+          zipCode: '700029'
+        },
+        capacity: 350,
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Lake View', 'Boats', 'Catering'],
+        venueType: 'outdoor',
+        contactInfo: {
+          phone: '9876543218',
+          email: 'events@lakeviewkolkata.com'
+        },
+        pricing: {
+          baseRate: 95000,
+          currency: 'INR'
+        },
+        description: 'Scenic lakeside venue with boat facilities. Perfect for weddings and cultural events with water themes.',
+        rating: 4.3,
+        totalEvents: 76
+      },
+      {
+        name: 'Modern Art Gallery Ahmedabad',
+        address: {
+          street: 'Law Garden Road',
+          city: 'Ahmedabad',
+          state: 'Gujarat',
+          zipCode: '380006'
+        },
+        capacity: 150,
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Art Displays', 'Cafeteria'],
+        venueType: 'indoor',
+        contactInfo: {
+          phone: '9876543219',
+          email: 'gallery@modernartahd.com'
+        },
+        pricing: {
+          baseRate: 60000,
+          currency: 'INR'
+        },
+        description: 'Contemporary art gallery venue for unique events. Features rotating art exhibitions and modern architecture.',
+        rating: 4.7,
+        totalEvents: 45
+      },
+      {
+        name: 'Mountain Resort Shimla',
+        address: {
+          street: 'Mall Road',
+          city: 'Shimla',
+          state: 'Himachal Pradesh',
+          zipCode: '171001'
+        },
+        capacity: 200,
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Mountain View', 'Fireplace', 'Catering'],
+        venueType: 'hybrid',
+        contactInfo: {
+          phone: '9876543220',
+          email: 'resort@mountainshimla.com'
+        },
+        pricing: {
+          baseRate: 110000,
+          currency: 'INR'
+        },
+        description: 'Hill station resort with breathtaking mountain views. Ideal for destination weddings and corporate offsites.',
+        rating: 4.8,
+        totalEvents: 62
+      }
+    ];
+
+    for (const venueData of venuesData) {
+      const existingVenue = await Venue.findOne({ name: venueData.name });
+      if (!existingVenue) {
+        await Venue.create(venueData);
+        console.log(`✅ Created venue: ${venueData.name}`);
+      } else {
+        console.log(`✅ Venue already exists: ${venueData.name}`);
+      }
     }
 
-    // 4. Create 2 test events with image links
+    // 4. Create predefined vendors
+    const vendorsData = [
+      {
+        name: 'Raj Catering Services',
+        serviceType: 'catering',
+        contactNo: '9876543221',
+        email: 'info@rajcatering.com',
+        contactPerson: 'Raj Kumar',
+        companyName: 'Raj Catering Services Pvt Ltd',
+        contractStart: new Date('2024-01-01'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Full-service catering with traditional and continental cuisine',
+        pricing: {
+          baseRate: 500,
+          currency: 'INR',
+          additionalFees: [
+            { name: 'Service Staff', amount: 200, type: 'fixed' }
+          ]
+        },
+        rating: 4.6,
+        totalEvents: 89
+      },
+      {
+        name: 'Pro Sound Systems',
+        serviceType: 'sound',
+        contactNo: '9876543222',
+        email: 'contact@prosound.com',
+        contactPerson: 'Amit Singh',
+        companyName: 'Pro Sound Systems India',
+        contractStart: new Date('2024-02-01'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Professional sound engineering and equipment rental',
+        pricing: {
+          baseRate: 15000,
+          currency: 'INR'
+        },
+        rating: 4.8,
+        totalEvents: 156
+      },
+      {
+        name: 'Elite Lighting Co.',
+        serviceType: 'lighting',
+        contactNo: '9876543223',
+        email: 'bookings@elitelighting.com',
+        contactPerson: 'Priya Sharma',
+        companyName: 'Elite Lighting Company',
+        contractStart: new Date('2024-01-15'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Stage lighting and special effects for events',
+        pricing: {
+          baseRate: 12000,
+          currency: 'INR'
+        },
+        rating: 4.7,
+        totalEvents: 134
+      },
+      {
+        name: 'Secure Events Security',
+        serviceType: 'security',
+        contactNo: '9876543224',
+        email: 'operations@secureevents.com',
+        contactPerson: 'Vikram Patel',
+        companyName: 'Secure Events Security Services',
+        contractStart: new Date('2024-03-01'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Professional security personnel and crowd management',
+        pricing: {
+          baseRate: 800,
+          currency: 'INR'
+        },
+        rating: 4.9,
+        totalEvents: 203
+      },
+      {
+        name: 'Floral Dreams Decor',
+        serviceType: 'decoration',
+        contactNo: '9876543225',
+        email: 'orders@floraldreams.com',
+        contactPerson: 'Meera Joshi',
+        companyName: 'Floral Dreams Event Decorators',
+        contractStart: new Date('2024-01-01'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Floral arrangements and event decoration services',
+        pricing: {
+          baseRate: 25000,
+          currency: 'INR'
+        },
+        rating: 4.5,
+        totalEvents: 98
+      },
+      {
+        name: 'Capture Moments Photography',
+        serviceType: 'photography',
+        contactNo: '9876543226',
+        email: 'info@capturemoments.com',
+        contactPerson: 'Arjun Reddy',
+        companyName: 'Capture Moments Photography',
+        contractStart: new Date('2024-02-15'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Professional photography and videography services',
+        pricing: {
+          baseRate: 30000,
+          currency: 'INR'
+        },
+        rating: 4.8,
+        totalEvents: 167
+      },
+      {
+        name: 'Swift Transportation',
+        serviceType: 'transportation',
+        contactNo: '9876543227',
+        email: 'bookings@swifttransport.com',
+        contactPerson: 'Karan Gupta',
+        companyName: 'Swift Transportation Services',
+        contractStart: new Date('2024-01-10'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Luxury vehicle rental and transportation services',
+        pricing: {
+          baseRate: 5000,
+          currency: 'INR'
+        },
+        rating: 4.6,
+        totalEvents: 145
+      },
+      {
+        name: 'MediCare Event Services',
+        serviceType: 'medical',
+        contactNo: '9876543228',
+        email: 'emergency@medicareevents.com',
+        contactPerson: 'Dr. Sunita Rao',
+        companyName: 'MediCare Event Medical Services',
+        contractStart: new Date('2024-03-15'),
+        contractEnd: new Date('2025-12-31'),
+        serviceDetails: 'Medical emergency response and first aid services',
+        pricing: {
+          baseRate: 10000,
+          currency: 'INR'
+        },
+        rating: 4.9,
+        totalEvents: 78
+      }
+    ];
+
+    const createdVendors = [];
+    for (const vendorData of vendorsData) {
+      const existingVendor = await Vendor.findOne({ email: vendorData.email });
+      if (!existingVendor) {
+        const vendor = await Vendor.create(vendorData);
+        createdVendors.push(vendor);
+        console.log(`✅ Created vendor: ${vendorData.name}`);
+      } else {
+        createdVendors.push(existingVendor);
+        console.log(`✅ Vendor already exists: ${vendorData.name}`);
+      }
+    }
+
+    // 5. Associate vendors with venues
+    const venues = await Venue.find({});
+    const vendorAssociations = [
+      // Grand Ballroom Mumbai - catering, sound, lighting, security, decoration
+      { venueName: 'Grand Ballroom Mumbai', vendorIndices: [0, 1, 2, 3, 4] },
+      // Beachfront Resort Goa - catering, sound, lighting, photography, transportation
+      { venueName: 'Beachfront Resort Goa', vendorIndices: [0, 1, 2, 5, 6] },
+      // Tech Hub Bangalore - sound, lighting, photography, security
+      { venueName: 'Tech Hub Bangalore', vendorIndices: [1, 2, 5, 3] },
+      // Heritage Palace Jaipur - catering, decoration, photography, sound
+      { venueName: 'Heritage Palace Jaipur', vendorIndices: [0, 4, 5, 1] },
+      // Skyline Tower Delhi - sound, lighting, security, catering
+      { venueName: 'Skyline Tower Delhi', vendorIndices: [1, 2, 3, 0] },
+      // Garden Resort Pune - catering, sound, decoration, photography
+      { venueName: 'Garden Resort Pune', vendorIndices: [0, 1, 4, 5] },
+      // Convention Center Chennai - sound, lighting, security, medical
+      { venueName: 'Convention Center Chennai', vendorIndices: [1, 2, 3, 7] },
+      // Lake View Resort Kolkata - catering, sound, decoration, transportation
+      { venueName: 'Lake View Resort Kolkata', vendorIndices: [0, 1, 4, 6] },
+      // Modern Art Gallery Ahmedabad - lighting, photography, security
+      { venueName: 'Modern Art Gallery Ahmedabad', vendorIndices: [2, 5, 3] },
+      // Mountain Resort Shimla - catering, sound, decoration, medical
+      { venueName: 'Mountain Resort Shimla', vendorIndices: [0, 1, 4, 7] }
+    ];
+
+    for (const association of vendorAssociations) {
+      const venue = venues.find(v => v.name === association.venueName);
+      if (venue) {
+        const vendorIds = association.vendorIndices.map(index => createdVendors[index]._id);
+        await Venue.findByIdAndUpdate(venue._id, { vendors: vendorIds });
+        console.log(`✅ Associated vendors with venue: ${association.venueName}`);
+      }
+    }
     const eventsData = [
       {
         name: 'Tech Conference 2025',
@@ -192,7 +604,8 @@ const seedDatabase = async () => {
     console.log(`📊 Created/Found:`);
     console.log(`   - 1 Organizer Account`);
     console.log(`   - 1 Organizer Profile`);
-    console.log(`   - 1 Venue`);
+    console.log(`   - 10 Venues`);
+    console.log(`   - 8 Vendors`);
     console.log(`   - 2 Events`);
 
   } catch (error) {

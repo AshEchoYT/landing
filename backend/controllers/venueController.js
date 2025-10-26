@@ -25,6 +25,7 @@ export const getVenues = asyncHandler(async (req, res) => {
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit))
+    .populate('vendors', 'name serviceType contactNo email rating')
     .select('-availability'); // Exclude availability for performance
 
   const total = await Venue.countDocuments(filter);
@@ -47,7 +48,7 @@ export const getVenues = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/venues/:id
 // @access  Public
 export const getVenue = asyncHandler(async (req, res) => {
-  const venue = await Venue.findById(req.params.id);
+  const venue = await Venue.findById(req.params.id).populate('vendors', 'name serviceType contactNo email rating companyName contactPerson');
 
   if (!venue || !venue.isActive) {
     return res.status(404).json({
@@ -289,6 +290,7 @@ export const searchVenues = asyncHandler(async (req, res) => {
 
   const venues = await Venue.find(filter)
     .select('name address capacity venueType facilities rating images')
+    .populate('vendors', 'name serviceType rating')
     .sort({ rating: -1, name: 1 })
     .limit(50);
 

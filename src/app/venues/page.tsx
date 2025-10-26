@@ -99,7 +99,7 @@ const VenuesPage = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 pt-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+              <div className="max-w-screen-2xl mx-auto px-6 sm:px-8 lg:px-12">
         {/* Header */}
         <motion.div
           className="text-center mb-12"
