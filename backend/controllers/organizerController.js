@@ -161,9 +161,8 @@ export const getEventAnalytics = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/organizer/staff
 // @access  Private (Organizer)
 export const getOrganizerStaff = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-
-  const staff = await Staff.find({ organizer: organizerId })
+  // Return all staff from the database, not just the organizer's staff
+  const staff = await Staff.find({})
     .select('name email role permissions isActive')
     .sort({ name: 1 });
 
@@ -199,11 +198,17 @@ export const addStaffMember = asyncHandler(async (req, res) => {
   }
 
   const staff = await Staff.create({
+    organizer: organizerId,
     name,
     email,
     role,
-    permissions,
-    organizer: organizerId
+    skills: permissions, // Map permissions to skills
+    contactNo: req.body.contactNo || '', // Add contact number if provided
+    availability: [], // Initialize empty availability array
+    hoursAssigned: 0, // Initialize hours assigned
+    hourlyRate: 0, // Initialize hourly rate
+    experience: 0, // Initialize experience
+    totalEvents: 0, // Initialize total events
   });
 
   res.status(201).json({
@@ -270,9 +275,8 @@ export const removeStaffMember = asyncHandler(async (req, res) => {
 // @route   GET /api/v1/organizer/sponsors
 // @access  Private (Organizer)
 export const getOrganizerSponsors = asyncHandler(async (req, res) => {
-  const organizerId = req.user._id;
-
-  const sponsors = await Sponsor.find({ organizer: organizerId })
+  // Return all sponsors from the database, not just the organizer's sponsors
+  const sponsors = await Sponsor.find({})
     .sort({ name: 1 });
 
   res.json({
@@ -298,13 +302,15 @@ export const addSponsor = asyncHandler(async (req, res) => {
   const { name, email, company, sponsorshipLevel, amount, benefits } = req.body;
 
   const sponsor = await Sponsor.create({
+    organizer: organizerId,
     name,
     email,
-    company,
-    sponsorshipLevel,
-    amount,
-    benefits,
-    organizer: organizerId
+    companyName: company, // Map company to companyName
+    sponsorshipType: sponsorshipLevel, // Map sponsorshipLevel to sponsorshipType
+    contributionAmount: amount, // Map amount to contributionAmount
+    perks: benefits, // Map benefits to perks
+    contactPerson: req.body.contactPerson || name, // Use name as contact person if not provided
+    contactNo: req.body.contactNo || '', // Add contact number if provided
   });
 
   res.status(201).json({
@@ -389,7 +395,16 @@ export const getOrganizerProfile = asyncHandler(async (req, res) => {
 // @access  Private (Organizer)
 export const updateOrganizerProfile = asyncHandler(async (req, res) => {
   const organizerId = req.user._id;
-  const { name, email, company, phone, bio, socialLinks } = req.body;
+  const {
+    name,
+    phoneNumbers,
+    companyName,
+    website,
+    description,
+    address,
+    socialMedia,
+    preferences
+  } = req.body;
 
   const organizer = await Organizer.findById(organizerId);
   if (!organizer) {
@@ -400,18 +415,44 @@ export const updateOrganizerProfile = asyncHandler(async (req, res) => {
   }
 
   // Update fields
-  if (name) organizer.name = name;
-  if (email) organizer.email = email;
-  if (company) organizer.company = company;
-  if (phone) organizer.phone = phone;
-  if (bio) organizer.bio = bio;
-  if (socialLinks) organizer.socialLinks = socialLinks;
+  if (name !== undefined) organizer.name = name;
+  if (phoneNumbers !== undefined) organizer.phoneNumbers = phoneNumbers;
+  if (companyName !== undefined) organizer.companyName = companyName;
+  if (website !== undefined) organizer.website = website;
+  if (description !== undefined) organizer.description = description;
+
+  // Update address object
+  if (address !== undefined) {
+    organizer.address = {
+      ...organizer.address,
+      ...address
+    };
+  }
+
+  // Update social media object
+  if (socialMedia !== undefined) {
+    organizer.socialMedia = {
+      ...organizer.socialMedia,
+      ...socialMedia
+    };
+  }
+
+  // Update preferences object
+  if (preferences !== undefined) {
+    organizer.preferences = {
+      ...organizer.preferences,
+      ...preferences
+    };
+  }
 
   await organizer.save();
+
+  // Return updated organizer without password
+  const updatedOrganizer = await Organizer.findById(organizerId).select('-password');
 
   res.json({
     success: true,
     message: 'Profile updated successfully',
-    data: { organizer }
+    data: { organizer: updatedOrganizer }
   });
 });

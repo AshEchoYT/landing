@@ -2,73 +2,51 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { useSearchParams } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import Navbar from '../../components/Navbar';
 import { eventsApi, CreateEventData, Event } from '../../api/eventsApi';
 import { venueApi, Venue } from '../../api/venueApi';
 import { organizerApi, StaffMember, Sponsor, Vendor } from '../../api/organizerApi';
-import Link from 'next/link';
 import {
   Calendar,
+  MapPin,
   DollarSign,
   Users,
+  Tag,
+  Image as ImageIcon,
   Plus,
   X,
   Upload,
+  Check,
   Edit3,
   Trash2,
+  Eye,
   Building,
   Truck,
+  Award,
   BarChart3,
   Settings,
+  Save,
   UserCheck
 } from 'lucide-react';
 
 const OrganizerDashboard = () => {
-  const { user, loading } = useAuth();
+  const { user } = useAuth();
 
-  console.log('Organizer Page - User object:', user);
-  console.log('Organizer Page - User role:', user?.role);
-  console.log('Organizer Page - User email:', user?.email);
-
-  // Check if user is loading or not an organizer BEFORE any hooks
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-400 mx-auto mb-4"></div>
-          <h1 className="text-4xl font-bold text-white mb-4">Loading...</h1>
-          <p className="text-gray-300 text-xl">Please wait while we verify your access.</p>
-        </div>
-      </div>
-    );
-  }
-
+  // Check if user is an organizer BEFORE any hooks
   if (!user || user.role !== 'organizer') {
-    console.log('Organizer Page - Access denied: user not found or not organizer');
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-4xl font-bold text-white mb-4">Access Denied</h1>
           <p className="text-gray-300 text-xl">You need organizer permissions to access this dashboard.</p>
           <p className="text-gray-400 mt-4">Please contact an administrator if you believe this is an error.</p>
-          <p className="text-gray-400 mt-2">User: {user ? `${user.name} (${user.role})` : 'Not logged in'}</p>
         </div>
       </div>
     );
   }
 
-  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState('overview');
-
-  // Set active tab from URL parameter
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    if (tab && tabs.some(t => t.id === tab)) {
-      setActiveTab(tab);
-    }
-  }, [searchParams]);
 
   // Data states
   const [dashboardData, setDashboardData] = useState<any>(null);
@@ -77,7 +55,7 @@ const OrganizerDashboard = () => {
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [myEvents, setMyEvents] = useState<Event[]>([]);
-  const [formLoading, setFormLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Form states
   const [eventForm, setEventForm] = useState<CreateEventData>({
@@ -86,17 +64,12 @@ const OrganizerDashboard = () => {
     date: '',
     venue: '',
     category: '',
-    capacity: 60, // Default capacity for all events (same seat map)
-    pricing: [
-      { category: 'vip', price: 20800 },
-      { category: 'fan-pit', price: 15000 },
-      { category: 'general', price: 10000 }
-    ],
+    capacity: 500, // Predefined capacity
+    pricing: [{ category: 'standard', price: 0 }],
     tags: [],
     image: '',
     staff: [],
-    sponsors: [],
-    vendors: []
+    sponsors: []
   });
 
   const [staffForm, setStaffForm] = useState({
@@ -115,18 +88,7 @@ const OrganizerDashboard = () => {
     benefits: [] as string[]
   });
 
-  type VenueVendor = {
-    _id: string;
-    name: string;
-    serviceType: string;
-    contactNo: string;
-    email: string;
-    rating: number;
-    companyName?: string;
-    contactPerson?: string;
-  };
-
-  const [selectedVenueVendors, setSelectedVenueVendors] = useState<VenueVendor[]>([]);
+  const [selectedVenueVendors, setSelectedVenueVendors] = useState<Vendor[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   // Modal states
@@ -211,18 +173,16 @@ const OrganizerDashboard = () => {
 
   // Initialize data
   useEffect(() => {
-    if (!loading && user && user.role === 'organizer') {
-      fetchDashboardData();
-      fetchVenues();
-      fetchStaff();
-      fetchSponsors();
-      fetchVendors();
+    fetchDashboardData();
+    fetchVenues();
+    fetchStaff();
+    fetchSponsors();
+    fetchVendors();
 
-      if (activeTab === 'manage' && user._id) {
-        fetchMyEvents();
-      }
+    if (activeTab === 'manage' && user?._id) {
+      fetchMyEvents();
     }
-  }, [activeTab, user?._id, loading, user]);
+  }, [activeTab, user?._id]);
 
   // Form handlers
   const handleEventFormChange = (field: keyof CreateEventData, value: any) => {
@@ -245,12 +205,12 @@ const OrganizerDashboard = () => {
     if (checked) {
       setEventForm(prev => ({
         ...prev,
-        staff: [...(prev.staff || []), { staffId, role }]
+        staff: [...prev.staff, { staffId, role }]
       }));
     } else {
       setEventForm(prev => ({
         ...prev,
-        staff: (prev.staff || []).filter(s => s.staffId !== staffId)
+        staff: prev.staff.filter(s => s.staffId !== staffId)
       }));
     }
   };
@@ -259,28 +219,20 @@ const OrganizerDashboard = () => {
     if (checked) {
       setEventForm(prev => ({
         ...prev,
-        sponsors: [...(prev.sponsors || []), { sponsorId, contributionAmount, sponsorshipType, perks }]
+        sponsors: [...prev.sponsors, { sponsorId, contributionAmount, sponsorshipType, perks }]
       }));
     } else {
       setEventForm(prev => ({
         ...prev,
-        sponsors: (prev.sponsors || []).filter(s => s.sponsorId !== sponsorId)
+        sponsors: prev.sponsors.filter(s => s.sponsorId !== sponsorId)
       }));
     }
   };
 
-  const handleVendorAssignment = (vendorId: string, serviceType: string, contractAmount: number, checked: boolean) => {
-    if (checked) {
-      setEventForm(prev => ({
-        ...prev,
-        vendors: [...(prev.vendors || []), { vendorId, serviceType, contractAmount }]
-      }));
-    } else {
-      setEventForm(prev => ({
-        ...prev,
-        vendors: (prev.vendors || []).filter(v => v.vendorId !== vendorId)
-      }));
-    }
+  const handleVendorAssignment = (vendorId: string, contractAmount: number, checked: boolean) => {
+    // For now, we'll store vendor assignments in a separate state or extend the form
+    // This would need backend support for vendor assignments
+    console.log('Vendor assignment:', vendorId, contractAmount, checked);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -298,7 +250,7 @@ const OrganizerDashboard = () => {
 
   const handleCreateEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormLoading(true);
+    setLoading(true);
 
     try {
       const response = await eventsApi.createEvent(eventForm);
@@ -311,17 +263,12 @@ const OrganizerDashboard = () => {
           date: '',
           venue: '',
           category: '',
-          capacity: 60,
-          pricing: [
-            { category: 'vip', price: 20800 },
-            { category: 'fan-pit', price: 15000 },
-            { category: 'general', price: 10000 }
-          ],
+          capacity: 500,
+          pricing: [{ category: 'standard', price: 0 }],
           tags: [],
           image: '',
           staff: [],
-          sponsors: [],
-          vendors: []
+          sponsors: []
         });
         setImagePreview(null);
         setSelectedVenueVendors([]);
@@ -331,7 +278,7 @@ const OrganizerDashboard = () => {
       console.error('Error creating event:', error);
       alert('Failed to create event');
     } finally {
-      setFormLoading(false);
+      setLoading(false);
     }
   };
 
@@ -551,14 +498,11 @@ const OrganizerDashboard = () => {
                             required
                           >
                             <option value="">Select Category</option>
-                            <option value="concert">Concert</option>
-                            <option value="festival">Festival</option>
-                            <option value="theater">Theater</option>
-                            <option value="art">Art</option>
+                            <option value="music">Music</option>
+                            <option value="tech">Technology</option>
                             <option value="sports">Sports</option>
-                            <option value="conference">Conference</option>
-                            <option value="workshop">Workshop</option>
-                            <option value="other">Other</option>
+                            <option value="business">Business</option>
+                            <option value="entertainment">Entertainment</option>
                           </select>
                         </div>
 
@@ -600,69 +544,6 @@ const OrganizerDashboard = () => {
                         />
                       </div>
 
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                        <div>
-                          <label className="block text-white font-semibold mb-2">Event Theme</label>
-                          <input
-                            type="text"
-                            value={eventForm.theme || ''}
-                            onChange={(e) => handleEventFormChange('theme', e.target.value)}
-                            placeholder="e.g., Innovation, Technology, Networking"
-                            className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-white font-semibold mb-2">Age Restriction</label>
-                          <input
-                            type="number"
-                            value={eventForm.ageRestriction || ''}
-                            onChange={(e) => handleEventFormChange('ageRestriction', e.target.value)}
-                            placeholder="18"
-                            min="0"
-                            className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:outline-none"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-                        <div>
-                          <label className="block text-white font-semibold mb-2">Budget (₹)</label>
-                          <input
-                            type="number"
-                            value={eventForm.budget || ''}
-                            onChange={(e) => handleEventFormChange('budget', e.target.value)}
-                            placeholder="400000"
-                            min="0"
-                            className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:outline-none"
-                          />
-                        </div>
-
-                        <div>
-                          <label className="block text-white font-semibold mb-2">Visibility</label>
-                          <select
-                            value={eventForm.visibility || 'public'}
-                            onChange={(e) => handleEventFormChange('visibility', e.target.value)}
-                            className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:outline-none"
-                          >
-                            <option value="public">Public</option>
-                            <option value="private">Private</option>
-                            <option value="invite-only">Invite Only</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="mt-6">
-                        <label className="block text-white font-semibold mb-2">Tags (comma-separated)</label>
-                        <input
-                          type="text"
-                          value={eventForm.tags?.join(', ') || ''}
-                          onChange={(e) => handleEventFormChange('tags', e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
-                          placeholder="tech, innovation, networking, conference"
-                          className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:outline-none"
-                        />
-                      </div>
-
                       <div className="mt-6">
                         <label className="block text-white font-semibold mb-2">Event Image</label>
                         <div className="flex items-center space-x-4">
@@ -689,7 +570,7 @@ const OrganizerDashboard = () => {
                     <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-3xl p-8 border border-cyan-500/20 shadow-2xl">
                       <h3 className="text-2xl font-bold text-white mb-6 flex items-center space-x-3">
                         <DollarSign className="w-6 h-6 text-cyan-400" />
-                        <span>Seat Pricing (Connected to Seat Map)</span>
+                        <span>Pricing Tiers</span>
                       </h3>
 
                       <div className="space-y-4">
@@ -704,9 +585,9 @@ const OrganizerDashboard = () => {
                               }}
                               className="bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-cyan-400 focus:outline-none"
                             >
-                              <option value="vip">VIP Row (₹20,800 default)</option>
-                              <option value="fan-pit">Fan Pit Rows (₹15,000 default)</option>
-                              <option value="general">General Row (₹10,000 default)</option>
+                              <option value="standard">Standard</option>
+                              <option value="vip">VIP</option>
+                              <option value="premium">Premium</option>
                             </select>
 
                             <input
@@ -736,15 +617,16 @@ const OrganizerDashboard = () => {
                           </div>
                         ))}
 
-                        <div className="mt-4 p-4 bg-gray-800/50 rounded-lg">
-                          <h4 className="text-white font-semibold mb-2">Seat Map Structure:</h4>
-                          <div className="text-sm text-gray-300 space-y-1">
-                            <p>• <strong>VIP:</strong> 1 row × 10 seats = ₹{eventForm.pricing.find(p => p.category === 'vip')?.price || 20800} each</p>
-                            <p>• <strong>Fan Pit:</strong> 4 rows × 10 seats = ₹{eventForm.pricing.find(p => p.category === 'fan-pit')?.price || 15000} each</p>
-                            <p>• <strong>General:</strong> 1 row × 10 seats = ₹{eventForm.pricing.find(p => p.category === 'general')?.price || 10000} each</p>
-                            <p className="text-cyan-400 font-semibold mt-2">Total Capacity: 60 seats</p>
-                          </div>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleEventFormChange('pricing', [...eventForm.pricing, { category: 'standard', price: 0 }]);
+                          }}
+                          className="flex items-center space-x-2 text-cyan-400 hover:text-cyan-300"
+                        >
+                          <Plus className="w-5 h-5" />
+                          <span>Add Pricing Tier</span>
+                        </button>
                       </div>
                     </div>
 
@@ -757,64 +639,21 @@ const OrganizerDashboard = () => {
                           <span>Assign Staff</span>
                         </h4>
 
-                        {staff.length > 0 ? (
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-white font-semibold mb-2">Select Staff Member</label>
-                              <select
-                                onChange={(e) => {
-                                  const staffId = e.target.value;
-                                  if (staffId) {
-                                    const selectedStaff = staff.find(s => s._id === staffId);
-                                    if (selectedStaff && !eventForm.staff?.some(s => s.staffId === staffId)) {
-                                      handleStaffAssignment(staffId, selectedStaff.role, true);
-                                    }
-                                  }
-                                  e.target.value = ''; // Reset dropdown
-                                }}
-                                className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-green-400 focus:outline-none"
-                              >
-                                <option value="">Choose a staff member...</option>
-                                {staff
-                                  .filter(member => !eventForm.staff?.some(s => s.staffId === member._id))
-                                  .map((member) => (
-                                    <option key={member._id} value={member._id}>
-                                      {member.name} - {member.role}
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-
-                            {/* Selected Staff */}
-                            {eventForm.staff && eventForm.staff.length > 0 && (
-                              <div className="space-y-2">
-                                <p className="text-white font-semibold text-sm">Selected Staff:</p>
-                                <div className="space-y-2 max-h-32 overflow-y-auto">
-                                  {eventForm.staff.map((staffAssignment, index) => {
-                                    const selectedStaff = staff.find(s => s._id === staffAssignment.staffId);
-                                    return (
-                                      <div key={index} className="flex items-center justify-between bg-gray-700/30 p-2 rounded-lg">
-                                        <div>
-                                          <p className="text-white text-sm font-medium">{selectedStaff?.name || 'Unknown Staff'}</p>
-                                          <p className="text-gray-400 text-xs">{staffAssignment.role}</p>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleStaffAssignment(staffAssignment.staffId, staffAssignment.role, false)}
-                                          className="text-red-400 hover:text-red-300"
-                                        >
-                                          <X className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                          {staff.map((member) => (
+                            <div key={member._id} className="flex items-center space-x-3">
+                              <input
+                                type="checkbox"
+                                onChange={(e) => handleStaffAssignment(member._id, member.role, e.target.checked)}
+                                className="w-4 h-4 text-green-400 bg-gray-700 border-gray-600 rounded focus:ring-green-400"
+                              />
+                              <div className="flex-1">
+                                <p className="text-white text-sm font-medium">{member.name}</p>
+                                <p className="text-gray-400 text-xs">{member.role}</p>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-gray-400 text-sm">No staff members available</p>
-                        )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
                       {/* Sponsor Assignment */}
@@ -824,137 +663,49 @@ const OrganizerDashboard = () => {
                           <span>Assign Sponsors</span>
                         </h4>
 
-                        {sponsors.filter(sponsor => sponsor && sponsor._id).length > 0 ? (
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-white font-semibold mb-2">Select Sponsor</label>
-                              <select
-                                onChange={(e) => {
-                                  const sponsorId = e.target.value;
-                                  if (sponsorId) {
-                                    const selectedSponsor = sponsors.find(s => s._id === sponsorId);
-                                    if (selectedSponsor && !eventForm.sponsors?.some(s => s.sponsorId === sponsorId)) {
-                                      handleSponsorAssignment(
-                                        sponsorId,
-                                        selectedSponsor.contributionAmount || selectedSponsor.amount || 0,
-                                        (selectedSponsor.sponsorshipType || selectedSponsor.sponsorshipLevel || 'bronze'),
-                                        (selectedSponsor.perks || selectedSponsor.benefits || []),
-                                        true
-                                      );
-                                    }
-                                  }
-                                  e.target.value = ''; // Reset dropdown
-                                }}
-                                className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-cyan-400 focus:outline-none"
-                              >
-                                <option value="">Choose a sponsor...</option>
-                                {sponsors
-                                  .filter(sponsor => sponsor && sponsor._id && !eventForm.sponsors?.some(s => s.sponsorId === sponsor._id))
-                                  .map((sponsor) => (
-                                    <option key={sponsor._id} value={sponsor._id}>
-                                      {sponsor.name} - {sponsor.companyName || sponsor.company} ({sponsor.sponsorshipType || sponsor.sponsorshipLevel})
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-
-                            {/* Selected Sponsors */}
-                            {eventForm.sponsors && eventForm.sponsors.length > 0 && (
-                              <div className="space-y-2">
-                                <p className="text-white font-semibold text-sm">Selected Sponsors:</p>
-                                <div className="space-y-2 max-h-32 overflow-y-auto">
-                                  {eventForm.sponsors.map((sponsorAssignment, index) => {
-                                    const selectedSponsor = sponsors.find(s => s._id === sponsorAssignment.sponsorId);
-                                    return (
-                                      <div key={index} className="flex items-center justify-between bg-gray-700/30 p-2 rounded-lg">
-                                        <div>
-                                          <p className="text-white text-sm font-medium">{selectedSponsor?.name || 'Unknown Sponsor'}</p>
-                                          <p className="text-gray-400 text-xs">{selectedSponsor?.companyName || selectedSponsor?.company || 'Unknown'} • {sponsorAssignment.sponsorshipType}</p>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleSponsorAssignment(sponsorAssignment.sponsorId, sponsorAssignment.contributionAmount, sponsorAssignment.sponsorshipType, sponsorAssignment.perks, false)}
-                                          className="text-red-400 hover:text-red-300"
-                                        >
-                                          <X className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                          {sponsors.map((sponsor) => (
+                            <div key={sponsor._id} className="flex items-center space-x-3">
+                              <input
+                                type="checkbox"
+                                onChange={(e) => handleSponsorAssignment(sponsor._id, sponsor.amount, sponsor.sponsorshipLevel, sponsor.benefits, e.target.checked)}
+                                className="w-4 h-4 text-cyan-400 bg-gray-700 border-gray-600 rounded focus:ring-cyan-400"
+                              />
+                              <div className="flex-1">
+                                <p className="text-white text-sm font-medium">{sponsor.name}</p>
+                                <p className="text-gray-400 text-xs">{sponsor.company}</p>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-gray-400 text-sm">No sponsors available</p>
-                        )}
+                            </div>
+                          ))}
+                        </div>
                       </div>
 
                       {/* Vendor Assignment */}
                       <div className="bg-gradient-to-br from-gray-800/80 to-gray-900/80 backdrop-blur-xl rounded-3xl p-6 border border-purple-500/20 shadow-2xl">
                         <h4 className="text-xl font-bold text-white mb-4 flex items-center space-x-2">
                           <Truck className="w-5 h-5 text-purple-400" />
-                          <span>Assign Vendors</span>
+                          <span>Venue Vendors</span>
                         </h4>
 
-                        {selectedVenueVendors.length > 0 ? (
-                          <div className="space-y-4">
-                            <div>
-                              <label className="block text-white font-semibold mb-2">Select Vendor</label>
-                              <select
-                                onChange={(e) => {
-                                  const vendorId = e.target.value;
-                                  if (vendorId) {
-                                    const vendor = selectedVenueVendors.find(v => v._id === vendorId);
-                                    if (vendor && !eventForm.vendors?.some(v => v.vendorId === vendorId)) {
-                                      handleVendorAssignment(vendorId, vendor.serviceType, 0, true);
-                                    }
-                                  }
-                                  e.target.value = ''; // Reset dropdown
-                                }}
-                                className="w-full bg-gray-700/50 border border-gray-600 rounded-xl px-4 py-3 text-white focus:border-purple-400 focus:outline-none"
-                              >
-                                <option value="">Choose a vendor...</option>
-                                {selectedVenueVendors
-                                  .filter(vendor => !eventForm.vendors?.some(v => v.vendorId === vendor._id))
-                                  .map((vendor) => (
-                                    <option key={vendor._id} value={vendor._id}>
-                                      {vendor.name} - {vendor.serviceType}
-                                    </option>
-                                  ))}
-                              </select>
-                            </div>
-
-                            {/* Selected Vendors */}
-                            {eventForm.vendors && eventForm.vendors.length > 0 && (
-                              <div className="space-y-2">
-                                <p className="text-white font-semibold text-sm">Selected Vendors:</p>
-                                <div className="space-y-2 max-h-32 overflow-y-auto">
-                                  {eventForm.vendors.map((vendorAssignment, index) => {
-                                    const vendor = selectedVenueVendors.find(v => v._id === vendorAssignment.vendorId);
-                                    return (
-                                      <div key={index} className="flex items-center justify-between bg-gray-700/30 p-2 rounded-lg">
-                                        <div>
-                                          <p className="text-white text-sm font-medium">{vendor?.name || 'Unknown Vendor'}</p>
-                                          <p className="text-gray-400 text-xs">{vendorAssignment.serviceType}</p>
-                                        </div>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleVendorAssignment(vendorAssignment.vendorId, vendorAssignment.serviceType, vendorAssignment.contractAmount, false)}
-                                          className="text-red-400 hover:text-red-300"
-                                        >
-                                          <X className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    );
-                                  })}
+                        <div className="space-y-3 max-h-64 overflow-y-auto">
+                          {selectedVenueVendors.length > 0 ? (
+                            selectedVenueVendors.map((vendor) => (
+                              <div key={vendor._id} className="flex items-center space-x-3">
+                                <input
+                                  type="checkbox"
+                                  onChange={(e) => handleVendorAssignment(vendor._id, vendor.contractValue, e.target.checked)}
+                                  className="w-4 h-4 text-purple-400 bg-gray-700 border-gray-600 rounded focus:ring-purple-400"
+                                />
+                                <div className="flex-1">
+                                  <p className="text-white text-sm font-medium">{vendor.name}</p>
+                                  <p className="text-gray-400 text-xs">{vendor.serviceType}</p>
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        ) : (
-                          <p className="text-gray-400 text-sm">Select a venue to see available vendors</p>
-                        )}
+                            ))
+                          ) : (
+                            <p className="text-gray-400 text-sm">Select a venue to see available vendors</p>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -962,10 +713,10 @@ const OrganizerDashboard = () => {
                     <div className="text-center">
                       <button
                         type="submit"
-                        disabled={formLoading}
+                        disabled={loading}
                         className="bg-gradient-to-r from-green-500 to-cyan-500 text-black px-12 py-4 rounded-2xl font-bold text-xl shadow-2xl hover:shadow-green-500/50 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {formLoading ? 'Creating Event...' : 'Create Event'}
+                        {loading ? 'Creating Event...' : 'Create Event'}
                       </button>
                     </div>
                   </form>
@@ -1132,7 +883,7 @@ const OrganizerDashboard = () => {
 
                 {/* Staff List */}
                 <div className="mt-12">
-                  <h3 className="text-2xl font-bold text-white mb-6">All Staff Members</h3>
+                  <h3 className="text-2xl font-bold text-white mb-6">Current Staff</h3>
                   {staff.length > 0 ? (
                     <div className="space-y-4">
                       {staff.map((member) => (
@@ -1152,7 +903,7 @@ const OrganizerDashboard = () => {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-400 text-center py-8">No staff members available</p>
+                    <p className="text-gray-400 text-center py-8">No staff members added yet</p>
                   )}
                 </div>
               </motion.div>
@@ -1263,23 +1014,23 @@ const OrganizerDashboard = () => {
 
                 {/* Sponsors List */}
                 <div className="mt-12">
-                  <h3 className="text-2xl font-bold text-white mb-6">All Sponsors</h3>
+                  <h3 className="text-2xl font-bold text-white mb-6">Current Sponsors</h3>
                   {sponsors.length > 0 ? (
                     <div className="space-y-4">
-                      {sponsors.filter(sponsor => sponsor && sponsor._id).map((sponsor) => (
-                        <div key={sponsor?._id || Math.random()} className="bg-gray-800/50 p-4 rounded-xl border border-gray-600">
+                      {sponsors.map((sponsor) => (
+                        <div key={sponsor._id} className="bg-gray-800/50 p-4 rounded-xl border border-gray-600">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-white font-semibold">{sponsor?.name || 'Unknown'}</p>
-                              <p className="text-gray-400 text-sm">{sponsor?.companyName || sponsor?.company || 'Unknown'} • {sponsor?.sponsorshipType || sponsor?.sponsorshipLevel || 'Unknown'}</p>
+                              <p className="text-white font-semibold">{sponsor.name}</p>
+                              <p className="text-gray-400 text-sm">{sponsor.company} • {sponsor.sponsorshipLevel}</p>
                             </div>
-                            <span className="text-cyan-400 font-semibold">₹{Number((sponsor?.contributionAmount || sponsor?.amount) || 0).toLocaleString()}</span>
+                            <span className="text-cyan-400 font-semibold">₹{sponsor.amount.toLocaleString()}</span>
                           </div>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-400 text-center py-8">No sponsors available</p>
+                    <p className="text-gray-400 text-center py-8">No sponsors added yet</p>
                   )}
                 </div>
               </motion.div>

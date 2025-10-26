@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const staffSchema = new mongoose.Schema({
+  organizer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organizer',
+    required: [true, 'Organizer is required']
+  },
   name: {
     type: String,
     required: [true, 'Staff name is required'],
@@ -9,7 +14,6 @@ const staffSchema = new mongoose.Schema({
   },
   contactNo: {
     type: String,
-    required: [true, 'Contact number is required'],
     trim: true,
     match: [/^[6-9]\d{9}$/, 'Please enter a valid 10-digit phone number']
   },
@@ -100,6 +104,9 @@ staffSchema.virtual('totalEarnings').get(function() {
 
 // Virtual for availability status
 staffSchema.virtual('isAvailableToday').get(function() {
+  if (!this.availability || !Array.isArray(this.availability)) {
+    return false;
+  }
   const today = new Date().toDateString();
   return this.availability.some(slot =>
     slot.date.toDateString() === today && slot.isAvailable
@@ -108,6 +115,9 @@ staffSchema.virtual('isAvailableToday').get(function() {
 
 // Method to check availability for specific date/time
 staffSchema.methods.isAvailableOn = function(date, startTime, endTime) {
+  if (!this.availability || !Array.isArray(this.availability)) {
+    return false;
+  }
   return this.availability.some(slot =>
     slot.date.toDateString() === date.toDateString() &&
     slot.startTime === startTime &&

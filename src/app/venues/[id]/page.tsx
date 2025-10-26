@@ -15,43 +15,41 @@ import {
   Volume2,
   Lightbulb,
   Calendar,
-  Clock,
   ArrowLeft,
   CheckCircle,
   XCircle
 } from 'lucide-react';
 import Loader from '../../../components/Loader';
-import { venueApi, Venue, VenueAvailability } from '../../../api/venueApi';
+import { venueApi, Venue } from '../../../api/venueApi';
 
 const VenueDetailPage = () => {
   const params = useParams();
   const venueId = params?.id as string;
 
+  console.log('VenueDetailPage params:', params);
+  console.log('VenueDetailPage venueId:', venueId);
+
   const [venue, setVenue] = useState<Venue | null>(null);
-  const [availability, setAvailability] = useState<VenueAvailability[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<string>('');
 
   useEffect(() => {
     const fetchVenueDetails = async () => {
       try {
         setLoading(true);
         setError(null);
+        console.log('Fetching venue details for ID:', venueId);
 
-        const [venueResponse, availabilityResponse] = await Promise.all([
-          venueApi.getVenue(venueId),
-          venueApi.getVenueAvailability(venueId)
-        ]);
+        const venueResponse = await venueApi.getVenue(venueId);
+
+        console.log('Venue response:', venueResponse);
 
         if (venueResponse.success) {
           setVenue(venueResponse.data.venue);
+          console.log('Venue data set:', venueResponse.data.venue);
         } else {
           setError('Failed to load venue details');
-        }
-
-        if (availabilityResponse.success) {
-          setAvailability(availabilityResponse.data.availability);
+          console.error('Venue API error:', venueResponse);
         }
       } catch (err) {
         console.error('Error fetching venue details:', err);
@@ -65,18 +63,6 @@ const VenueDetailPage = () => {
       fetchVenueDetails();
     }
   }, [venueId]);
-
-  const handleDateChange = async (date: string) => {
-    setSelectedDate(date);
-    try {
-      const response = await venueApi.getVenueAvailability(venueId, date);
-      if (response.success) {
-        setAvailability(response.data.availability);
-      }
-    } catch (err) {
-      console.error('Error fetching availability:', err);
-    }
-  };
 
   const getFacilityIcon = (facility: string) => {
     const iconMap: { [key: string]: React.ComponentType<any> } = {
@@ -101,6 +87,7 @@ const VenueDetailPage = () => {
   }
 
   if (error || !venue) {
+    console.log('Error state triggered:', { error, venue, venueId });
     return (
       <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 pt-20">
         <div className="max-w-screen-2xl mx-auto px-6 sm:px-8 lg:px-12 py-8">
@@ -110,6 +97,11 @@ const VenueDetailPage = () => {
             animate={{ opacity: 1, scale: 1 }}
           >
             <div className="text-red-400 text-xl mb-4">⚠️ {error || 'Venue not found'}</div>
+            <div className="text-gray-400 text-sm mb-4">
+              Venue ID: {venueId}<br/>
+              Error: {error}<br/>
+              Venue: {venue ? 'Loaded' : 'Not loaded'}
+            </div>
             <Link href="/venues">
               <button className="bg-gradient-to-r from-green-500 to-cyan-500 text-black px-6 py-2 rounded-lg font-semibold hover:from-green-400 hover:to-cyan-400 transition-all">
                 Back to Venues
@@ -356,65 +348,6 @@ const VenueDetailPage = () => {
                   <span className="text-white font-semibold">{venue.totalEvents}</span>
                 </div>
               </div>
-            </motion.div>
-
-            {/* Availability Checker */}
-            <motion.div
-              className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.7 }}
-            >
-              <h3 className="text-xl font-bold text-white mb-4">Check Availability</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Select Date
-                  </label>
-                  <input
-                    type="date"
-                    value={selectedDate}
-                    onChange={(e) => handleDateChange(e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-
-                {availability.length > 0 && (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-medium text-gray-300">Available Times:</h4>
-                    {availability.map((slot, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-gray-700/30 rounded-lg">
-                        <div className="flex items-center space-x-2">
-                          <Clock className="w-4 h-4 text-gray-400" />
-                          <span className="text-sm text-gray-300">
-                            {slot.startTime} - {slot.endTime}
-                          </span>
-                        </div>
-                        {slot.isBooked ? (
-                          <XCircle className="w-4 h-4 text-red-400" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4 text-green-400" />
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-
-            {/* Action Buttons */}
-            <motion.div
-              className="space-y-3"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.8 }}
-            >
-              <button className="w-full bg-gradient-to-r from-green-500 to-cyan-500 text-black py-3 rounded-lg font-semibold hover:from-green-400 hover:to-cyan-400 transition-all duration-150 shadow-lg hover:shadow-green-500/50">
-                Book This Venue
-              </button>
-              <button className="w-full bg-gray-700/50 text-white py-3 rounded-lg font-semibold hover:bg-gray-600/50 transition-all duration-150">
-                Contact Venue
-              </button>
             </motion.div>
           </div>
         </div>

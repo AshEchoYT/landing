@@ -5,6 +5,8 @@ import Organizer from './models/Organizer.js';
 import Venue from './models/Venue.js';
 import Event from './models/Event.js';
 import Vendor from './models/Vendor.js';
+import Staff from './models/Staff.js';
+import Sponsor from './models/Sponsor.js';
 
 // Load environment variables
 dotenv.config();
@@ -62,7 +64,147 @@ const seedDatabase = async () => {
       console.log('✅ Found existing organizer profile');
     }
 
-    // 3. Create 10 predefined venues
+    // 3. Create staff members for the organizer
+    const staffData = [
+      {
+        name: 'Rajesh Kumar',
+        contactNo: '9876543221',
+        email: 'rajesh.kumar@testevents.com',
+        role: 'manager',
+        hourlyRate: 300,
+        experience: 5,
+        skills: ['event management', 'coordination', 'leadership'],
+        rating: 4.8,
+        totalEvents: 25
+      },
+      {
+        name: 'Priya Sharma',
+        contactNo: '9876543222',
+        email: 'priya.sharma@testevents.com',
+        role: 'coordinator',
+        hourlyRate: 250,
+        experience: 3,
+        skills: ['logistics', 'vendor management', 'communication'],
+        rating: 4.6,
+        totalEvents: 18
+      },
+      {
+        name: 'Amit Singh',
+        contactNo: '9876543223',
+        email: 'amit.singh@testevents.com',
+        role: 'technician',
+        hourlyRate: 200,
+        experience: 4,
+        skills: ['audio', 'lighting', 'technical support'],
+        rating: 4.7,
+        totalEvents: 32
+      },
+      {
+        name: 'Meera Joshi',
+        contactNo: '9876543224',
+        email: 'meera.joshi@testevents.com',
+        role: 'security',
+        hourlyRate: 180,
+        experience: 6,
+        skills: ['crowd control', 'emergency response', 'security'],
+        rating: 4.9,
+        totalEvents: 45
+      },
+      {
+        name: 'Karan Gupta',
+        contactNo: '9876543225',
+        email: 'karan.gupta@testevents.com',
+        role: 'usher',
+        hourlyRate: 150,
+        experience: 2,
+        skills: ['customer service', 'guidance', 'hospitality'],
+        rating: 4.5,
+        totalEvents: 12
+      }
+    ];
+
+    const createdStaff = [];
+    for (const staffMember of staffData) {
+      const existingStaff = await Staff.findOne({ email: staffMember.email });
+      if (!existingStaff) {
+        const staff = await Staff.create({
+          ...staffMember,
+          organizer: organizerProfile._id
+        });
+        createdStaff.push(staff);
+        console.log(`✅ Created staff: ${staffMember.name}`);
+      } else {
+        createdStaff.push(existingStaff);
+        console.log(`✅ Staff already exists: ${staffMember.name}`);
+      }
+    }
+
+    // 4. Create sponsors for the organizer
+    const sponsorsData = [
+      {
+        name: 'TechCorp Solutions',
+        contactPerson: 'Vikram Rao',
+        contactNo: '9876543226',
+        email: 'vikram.rao@techcorp.com',
+        companyName: 'TechCorp Solutions Pvt Ltd',
+        website: 'https://techcorp.com',
+        sponsorshipType: 'platinum',
+        contributionAmount: 500000,
+        industry: 'Technology',
+        description: 'Leading technology solutions provider',
+        perks: ['Logo on main banner', 'Speaking slot', 'Booth space', 'VIP tickets'],
+        rating: 4.8,
+        totalEventsSponsored: 15
+      },
+      {
+        name: 'SoundWave Entertainment',
+        contactPerson: 'Anjali Mehta',
+        contactNo: '9876543227',
+        email: 'anjali.mehta@soundwave.com',
+        companyName: 'SoundWave Entertainment Ltd',
+        website: 'https://soundwave.com',
+        sponsorshipType: 'gold',
+        contributionAmount: 300000,
+        industry: 'Entertainment',
+        description: 'Premium entertainment and music production company',
+        perks: ['Logo on merchandise', 'Social media mentions', 'Performance slot'],
+        rating: 4.6,
+        totalEventsSponsored: 22
+      },
+      {
+        name: 'InnovateTech Corp',
+        contactPerson: 'Rohit Verma',
+        contactNo: '9876543228',
+        email: 'rohit.verma@innovatetech.com',
+        companyName: 'InnovateTech Corporation',
+        website: 'https://innovatetech.com',
+        sponsorshipType: 'silver',
+        contributionAmount: 200000,
+        industry: 'Technology',
+        description: 'Innovation-driven technology company',
+        perks: ['Logo on website', 'Newsletter mention', 'Networking session'],
+        rating: 4.7,
+        totalEventsSponsored: 8
+      }
+    ];
+
+    const createdSponsors = [];
+    for (const sponsorData of sponsorsData) {
+      const existingSponsor = await Sponsor.findOne({ email: sponsorData.email });
+      if (!existingSponsor) {
+        const sponsor = await Sponsor.create({
+          ...sponsorData,
+          organizer: organizerProfile._id
+        });
+        createdSponsors.push(sponsor);
+        console.log(`✅ Created sponsor: ${sponsorData.name}`);
+      } else {
+        createdSponsors.push(existingSponsor);
+        console.log(`✅ Sponsor already exists: ${sponsorData.name}`);
+      }
+    }
+
+    // 5. Create 10 predefined venues
     const venuesData = [
       {
         name: 'Grand Ballroom Mumbai',
@@ -104,7 +246,7 @@ const seedDatabase = async () => {
           zipCode: '403515'
         },
         capacity: 800,
-        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Restrooms', 'Bar', 'Outdoor Space'],
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Restrooms', 'Bar'],
         venueType: 'outdoor',
         contactInfo: {
           phone: '9876543212',
@@ -127,7 +269,7 @@ const seedDatabase = async () => {
           zipCode: '560066'
         },
         capacity: 600,
-        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage', 'Projectors'],
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage'],
         venueType: 'hybrid',
         contactInfo: {
           phone: '9876543213',
@@ -150,7 +292,7 @@ const seedDatabase = async () => {
           zipCode: '302002'
         },
         capacity: 400,
-        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Traditional Decor', 'Gardens'],
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage'],
         venueType: 'outdoor',
         contactInfo: {
           phone: '9876543214',
@@ -173,7 +315,7 @@ const seedDatabase = async () => {
           zipCode: '110001'
         },
         capacity: 300,
-        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage', 'City View'],
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage'],
         venueType: 'indoor',
         contactInfo: {
           phone: '9876543215',
@@ -196,7 +338,7 @@ const seedDatabase = async () => {
           zipCode: '410401'
         },
         capacity: 250,
-        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Gardens', 'Swimming Pool', 'Catering'],
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Food Court'],
         venueType: 'outdoor',
         contactInfo: {
           phone: '9876543216',
@@ -219,7 +361,7 @@ const seedDatabase = async () => {
           zipCode: '600017'
         },
         capacity: 1200,
-        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage', 'Multiple Halls'],
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Stage'],
         venueType: 'hybrid',
         contactInfo: {
           phone: '9876543217',
@@ -242,7 +384,7 @@ const seedDatabase = async () => {
           zipCode: '700029'
         },
         capacity: 350,
-        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Lake View', 'Boats', 'Catering'],
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Food Court'],
         venueType: 'outdoor',
         contactInfo: {
           phone: '9876543218',
@@ -265,7 +407,7 @@ const seedDatabase = async () => {
           zipCode: '380006'
         },
         capacity: 150,
-        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting', 'Art Displays', 'Cafeteria'],
+        facilities: ['AC', 'Parking', 'WiFi', 'Sound System', 'Lighting'],
         venueType: 'indoor',
         contactInfo: {
           phone: '9876543219',
@@ -288,7 +430,7 @@ const seedDatabase = async () => {
           zipCode: '171001'
         },
         capacity: 200,
-        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Mountain View', 'Fireplace', 'Catering'],
+        facilities: ['Parking', 'Sound System', 'Lighting', 'Stage', 'Food Court'],
         venueType: 'hybrid',
         contactInfo: {
           phone: '9876543220',
@@ -503,6 +645,7 @@ const seedDatabase = async () => {
         console.log(`✅ Associated vendors with venue: ${association.venueName}`);
       }
     }
+    // 6. Create 2 test events with proper staff and sponsor assignments
     const eventsData = [
       {
         name: 'Tech Conference 2025',
@@ -512,6 +655,7 @@ const seedDatabase = async () => {
         endDate: new Date('2025-11-16'),
         startTime: '09:00',
         endTime: '18:00',
+        budget: 500000,
         tags: ['technology', 'ai', 'blockchain', 'innovation'],
         images: [
           {
@@ -530,7 +674,7 @@ const seedDatabase = async () => {
           currency: 'INR'
         },
         organizer: organizerProfile._id,
-        venue: testVenue._id,
+        venue: venues.find(v => v.name === 'Grand Ballroom Mumbai')._id,
         status: 'published',
         seatMap: {
           totalSeats: 500,
@@ -542,7 +686,16 @@ const seedDatabase = async () => {
         policies: {
           refund: 'partial',
           cancellation: 'Free cancellation up to 7 days before event'
-        }
+        },
+        staff: [
+          { staff: createdStaff[0]._id, hoursAssigned: 16, role: 'manager' },
+          { staff: createdStaff[1]._id, hoursAssigned: 14, role: 'coordinator' },
+          { staff: createdStaff[2]._id, hoursAssigned: 12, role: 'technician' }
+        ],
+        sponsors: [
+          { sponsor: createdSponsors[0]._id, sponsorshipType: 'platinum', contributionAmount: 200000 },
+          { sponsor: createdSponsors[1]._id, sponsorshipType: 'gold', contributionAmount: 150000 }
+        ]
       },
       {
         name: 'Music Festival Extravaganza',
@@ -552,6 +705,7 @@ const seedDatabase = async () => {
         endDate: new Date('2025-12-22'),
         startTime: '16:00',
         endTime: '23:00',
+        budget: 800000,
         tags: ['music', 'festival', 'entertainment', 'live'],
         images: [
           {
@@ -570,7 +724,7 @@ const seedDatabase = async () => {
           currency: 'INR'
         },
         organizer: organizerProfile._id,
-        venue: testVenue._id,
+        venue: venues.find(v => v.name === 'Beachfront Resort Goa')._id,
         status: 'published',
         seatMap: {
           totalSeats: 500,
@@ -582,17 +736,52 @@ const seedDatabase = async () => {
         policies: {
           refund: 'full',
           cancellation: 'Free cancellation up to 14 days before event'
-        }
+        },
+        staff: [
+          { staff: createdStaff[0]._id, hoursAssigned: 24, role: 'manager' },
+          { staff: createdStaff[3]._id, hoursAssigned: 20, role: 'security' },
+          { staff: createdStaff[4]._id, hoursAssigned: 18, role: 'usher' },
+          { staff: createdStaff[2]._id, hoursAssigned: 16, role: 'technician' }
+        ],
+        sponsors: [
+          { sponsor: createdSponsors[1]._id, sponsorshipType: 'platinum', contributionAmount: 300000 },
+          { sponsor: createdSponsors[2]._id, sponsorshipType: 'silver', contributionAmount: 100000 }
+        ]
       }
     ];
 
-    for (const eventData of eventsData) {
-      const existingEvent = await Event.findOne({ name: eventData.name });
-      if (!existingEvent) {
-        await Event.create(eventData);
-        console.log(`✅ Created event: ${eventData.name}`);
+    // Check and update existing events with vendor assignments
+    console.log('� Checking existing events vendor assignments...');
+    const existingEvents = await Event.find({}).populate({
+      path: 'vendors.vendor',
+      select: 'name serviceType'
+    });
+
+    for (const event of existingEvents) {
+      console.log(`Event: ${event.name}`);
+      console.log(`  Current vendors: ${event.vendors ? event.vendors.length : 0}`);
+      
+      if (event.vendors && event.vendors.length > 0) {
+        event.vendors.forEach((vendorAssignment, index) => {
+          console.log(`    Vendor ${index + 1}: ${vendorAssignment.vendor.name} (${vendorAssignment.vendor.serviceType})`);
+        });
       } else {
-        console.log(`✅ Event already exists: ${eventData.name}`);
+        console.log('    No vendors assigned - assigning one...');
+        
+        // Assign a vendor
+        const venue = await Venue.findById(event.venue).populate('vendors');
+        if (venue && venue.vendors && venue.vendors.length > 0) {
+          const randomVendor = venue.vendors[Math.floor(Math.random() * venue.vendors.length)];
+          
+          event.vendors = [{
+            vendor: randomVendor._id,
+            serviceType: randomVendor.serviceType,
+            contractAmount: Math.floor(Math.random() * 50000) + 10000
+          }];
+          
+          await event.save();
+          console.log(`    ✅ Assigned vendor: ${randomVendor.name} (${randomVendor.serviceType})`);
+        }
       }
     }
 
@@ -600,13 +789,89 @@ const seedDatabase = async () => {
     const totalEvents = await Event.countDocuments({ organizer: organizerProfile._id });
     await Organizer.findByIdAndUpdate(organizerProfile._id, { totalEvents });
 
+    // Add a new test event with one of the new venues
+    const newEventData = {
+      name: 'Digital Innovation Summit',
+      type: 'conference',
+      description: 'Join industry leaders and innovators for a comprehensive summit on digital transformation, AI, and emerging technologies. Network with experts and discover the latest trends shaping the future of technology.',
+      startDate: new Date('2025-12-10'),
+      endDate: new Date('2025-12-11'),
+      startTime: '09:00',
+      endTime: '18:00',
+      budget: 400000,
+      tags: ['technology', 'innovation', 'ai', 'digital', 'conference'],
+      images: [
+        {
+          url: 'https://images.unsplash.com/photo-1559136555-9303baea8ebd?w=800&h=600&fit=crop',
+          alt: 'Digital Innovation Summit Main Image',
+          isPrimary: true
+        },
+        {
+          url: 'https://images.unsplash.com/photo-1556761175-b413da4baf72?w=800&h=600&fit=crop',
+          alt: 'Conference Networking'
+        }
+      ],
+      pricing: {
+        minPrice: 2000,
+        maxPrice: 4000,
+        currency: 'INR'
+      },
+      organizer: organizerProfile._id,
+      venue: venues.find(v => v.name === 'Tech Hub Bangalore')._id, // Using Tech Hub Bangalore
+      status: 'published',
+      seatMap: {
+        totalSeats: 400,
+        availableSeats: 380,
+        soldSeats: 20,
+        reservedSeats: 0
+      },
+      ageRestriction: 18,
+      policies: {
+        refund: 'partial',
+        cancellation: 'Free cancellation up to 10 days before event'
+      },
+      staff: [
+        { staff: createdStaff[1]._id, hoursAssigned: 12, role: 'coordinator' },
+        { staff: createdStaff[2]._id, hoursAssigned: 10, role: 'technician' },
+        { staff: createdStaff[4]._id, hoursAssigned: 8, role: 'usher' }
+      ],
+      sponsors: [
+        { sponsor: createdSponsors[0]._id, sponsorshipType: 'platinum', contributionAmount: 250000 },
+        { sponsor: createdSponsors[2]._id, sponsorshipType: 'gold', contributionAmount: 120000 }
+      ]
+    };
+
+    const newEvent = await Event.findOneAndUpdate(
+      { name: newEventData.name },
+      newEventData,
+      { upsert: true, new: true }
+    );
+
+    console.log(`✅ Created/Updated event: ${newEventData.name}`);
+
+    // Assign a vendor to this new event
+    const eventVenue = await Venue.findById(newEvent.venue).populate('vendors');
+    if (eventVenue && eventVenue.vendors && eventVenue.vendors.length > 0) {
+      const assignedVendor = eventVenue.vendors.find(v => v.name === 'Pro Sound Systems') || eventVenue.vendors[0];
+      await Event.findByIdAndUpdate(newEvent._id, {
+        vendors: [{
+          vendor: assignedVendor._id,
+          serviceType: assignedVendor.serviceType,
+          contractAmount: 28000
+        }]
+      });
+      console.log(`✅ Assigned vendor ${assignedVendor.name} to ${newEventData.name}`);
+    }
+
     console.log('🎉 Database seeding completed successfully!');
     console.log(`📊 Created/Found:`);
     console.log(`   - 1 Organizer Account`);
     console.log(`   - 1 Organizer Profile`);
+    console.log(`   - 5 Staff Members`);
+    console.log(`   - 3 Sponsors`);
     console.log(`   - 10 Venues`);
     console.log(`   - 8 Vendors`);
-    console.log(`   - 2 Events`);
+    console.log(`   - 3 Events`);
 
   } catch (error) {
     console.error('❌ Seeding error:', error);

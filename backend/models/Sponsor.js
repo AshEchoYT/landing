@@ -1,6 +1,11 @@
 import mongoose from 'mongoose';
 
 const sponsorSchema = new mongoose.Schema({
+  organizer: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Organizer',
+    required: [true, 'Organizer is required']
+  },
   name: {
     type: String,
     required: [true, 'Sponsor name is required'],
@@ -9,13 +14,11 @@ const sponsorSchema = new mongoose.Schema({
   },
   contactPerson: {
     type: String,
-    required: [true, 'Contact person is required'],
     trim: true,
     maxlength: [50, 'Contact person name cannot exceed 50 characters']
   },
   contactNo: {
     type: String,
-    required: [true, 'Contact number is required'],
     trim: true,
     match: [/^[6-9]\d{9}$/, 'Please enter a valid 10-digit phone number']
   },

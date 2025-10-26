@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
 
 const organizerSchema = new mongoose.Schema({
   name: {
@@ -15,11 +16,22 @@ const organizerSchema = new mongoose.Schema({
     trim: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
+  password: {
+    type: String,
+    required: [true, 'Password is required'],
+    minlength: [6, 'Password must be at least 6 characters'],
+    select: false // Don't include password in queries by default
+  },
   phoneNumbers: [{
     type: String,
     trim: true,
     match: [/^[6-9]\d{9}$/, 'Please enter a valid 10-digit phone number']
   }],
+  role: {
+    type: String,
+    enum: ['organizer'],
+    default: 'organizer'
+  },
   companyName: {
     type: String,
     trim: true,
@@ -72,6 +84,15 @@ const organizerSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  preferences: {
+    notifications: {
+      email: { type: Boolean, default: true },
+      sms: { type: Boolean, default: false },
+      push: { type: Boolean, default: true }
+    },
+    theme: { type: String, enum: ['light', 'dark'], default: 'dark' },
+    language: { type: String, default: 'en' }
   }
 }, {
   timestamps: true,
@@ -82,6 +103,47 @@ const organizerSchema = new mongoose.Schema({
 // Indexes for better query performance
 organizerSchema.index({ isVerified: 1 });
 organizerSchema.index({ isActive: 1 });
+organizerSchema.index({ email: 1 });
+
+// Hash password before saving
+organizerSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next();
+
+  try {
+    const salt = await bcrypt.genSalt(12);
+    this.password = await bcrypt.hash(this.password, salt);
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Compare password method
+organizerSchema.methods.comparePassword = async function(candidatePassword) {
+  return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Get public profile method
+organizerSchema.methods.getPublicProfile = function() {
+  return {
+    _id: this._id,
+    name: this.name,
+    email: this.email,
+    phoneNumbers: this.phoneNumbers,
+    role: this.role || 'organizer',
+    companyName: this.companyName,
+    website: this.website,
+    description: this.description,
+    address: this.address,
+    socialMedia: this.socialMedia,
+    isVerified: this.isVerified,
+    totalEvents: this.totalEvents,
+    rating: this.rating,
+    preferences: this.preferences,
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
+  };
+};
 
 // Virtual for events count
 organizerSchema.virtual('eventsCount').get(function() {

@@ -16,8 +16,12 @@ apiClient.interceptors.request.use(
   (config) => {
     // Get token from localStorage or cookies
     const token = localStorage.getItem('accessToken');
+    console.log('API Client - Token from localStorage:', token ? 'EXISTS' : 'NOT FOUND');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      console.log('API Client - Added Authorization header');
+    } else {
+      console.log('API Client - No token found, request will fail');
     }
     return config;
   },

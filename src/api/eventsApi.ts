@@ -24,6 +24,39 @@ export interface Event {
   capacity: number;
   status: 'active' | 'inactive' | 'cancelled' | 'completed';
   image?: string;
+  staffCount?: number;
+  sponsor?: string;
+  staff?: Array<{
+    staff: {
+      _id: string;
+      name: string;
+      email: string;
+      role: string;
+    };
+    role: string;
+    assignedAt: string;
+  }>;
+  sponsors?: Array<{
+    sponsor: {
+      _id: string;
+      name: string;
+      company: string;
+      sponsorshipLevel: string;
+      amount: number;
+    };
+    contributionAmount: number;
+    sponsorshipType: string;
+    perks: string[];
+  }>;
+  vendors?: Array<{
+    vendor: {
+      _id: string;
+      name: string;
+      serviceType: string;
+    };
+    serviceType: string;
+    contractAmount: number;
+  }>;
   analytics: {
     ticketsSold: number;
     attendees: number;
@@ -74,6 +107,25 @@ export interface CreateEventData {
   }>;
   tags?: string[];
   image?: string;
+  staff?: Array<{
+    staffId: string;
+    role: string;
+  }>;
+  sponsors?: Array<{
+    sponsorId: string;
+    contributionAmount: number;
+    sponsorshipType: string;
+    perks: string[];
+  }>;
+  vendors?: Array<{
+    vendorId: string;
+    serviceType: string;
+    contractAmount: number;
+  }>;
+  theme?: string;
+  ageRestriction?: number;
+  budget?: number;
+  visibility?: 'public' | 'private' | 'invite-only';
 }
 
 export const eventsApi = {

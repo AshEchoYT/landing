@@ -82,7 +82,7 @@ const Navbar = () => {
         <div className="absolute right-8 lg:right-16 xl:right-24 top-1/2 transform -translate-y-1/2 z-10">
           {user ? (
             <div className="flex items-center space-x-3 lg:space-x-4">
-              <Link href="/profile">
+              <Link href={user.role === 'organizer' ? '/organizer/profile' : '/profile'}>
                 <motion.div
                   className="flex items-center space-x-2 text-white cursor-pointer hover:text-green-400 transition-colors duration-300"
                   initial={{ opacity: 0, scale: 0.8 }}
@@ -226,7 +226,7 @@ const Navbar = () => {
               <div className="pt-4 border-t border-green-500/20">
                 {user ? (
                   <div className="space-y-4">
-                    <Link href="/profile" onClick={() => setIsMobileMenuOpen(false)}>
+                    <Link href={user.role === 'organizer' ? '/organizer/profile' : '/profile'} onClick={() => setIsMobileMenuOpen(false)}>
                       <motion.div
                         className="flex items-center space-x-3 px-4 py-3 text-white hover:text-green-400 hover:bg-green-500/10 transition-all duration-300 cursor-pointer rounded-lg"
                         whileHover={{ scale: 1.02, x: 10 }}

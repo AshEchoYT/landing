@@ -190,7 +190,7 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.7 }}
+          transition={{ delay: 0.6 }}
         >
           <Link href={`/events/${event._id}`}>
             <motion.button

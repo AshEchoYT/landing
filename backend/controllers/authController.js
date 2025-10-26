@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { validationResult } from 'express-validator';
 import Attendee from '../models/Attendee.js';
+import Organizer from '../models/Organizer.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 
 // Generate access token
@@ -36,23 +37,41 @@ export const register = asyncHandler(async (req, res) => {
 
   const { name, email, phoneNumbers, password, role } = req.body;
 
-  // Check if user already exists
-  const existingUser = await Attendee.findOne({ email });
-  if (existingUser) {
+  // Check if user already exists in either table
+  const existingAttendee = await Attendee.findOne({ email });
+  const existingOrganizer = await Organizer.findOne({ email });
+
+  if (existingAttendee || existingOrganizer) {
     return res.status(400).json({
       success: false,
       message: 'User already exists with this email'
     });
   }
 
-  // Create user
-  const user = await Attendee.create({
-    name,
-    email,
-    phoneNumbers: phoneNumbers || [],
-    password,
-    role: role || 'attendee'
-  });
+  let user;
+
+  // Create user based on role
+  if (role === 'organizer') {
+    user = await Organizer.create({
+      name,
+      email,
+      phoneNumbers: phoneNumbers || [],
+      password,
+      role: 'organizer',
+      companyName: req.body.companyName || '',
+      description: req.body.description || '',
+      address: req.body.address || {},
+      isVerified: false
+    });
+  } else {
+    user = await Attendee.create({
+      name,
+      email,
+      phoneNumbers: phoneNumbers || [],
+      password,
+      role: 'attendee'
+    });
+  }
 
   // Generate tokens
   const accessToken = generateAccessToken(user._id);
@@ -91,8 +110,12 @@ export const login = asyncHandler(async (req, res) => {
 
   const { email, password } = req.body;
 
-  // Check if user exists and get password
-  const user = await Attendee.findOne({ email }).select('+password');
+  // Check if user exists in either table and get password
+  let user = await Attendee.findOne({ email }).select('+password');
+  if (!user) {
+    user = await Organizer.findOne({ email }).select('+password');
+  }
+
   if (!user) {
     return res.status(401).json({
       success: false,
@@ -159,8 +182,12 @@ export const refresh = asyncHandler(async (req, res) => {
       process.env.JWT_REFRESH_SECRET || 'your-refresh-secret-key'
     );
 
-    // Check if user still exists
-    const user = await Attendee.findById(decoded.userId);
+    // Check if user still exists in either table
+    let user = await Attendee.findById(decoded.userId);
+    if (!user) {
+      user = await Organizer.findById(decoded.userId);
+    }
+
     if (!user || !user.isActive) {
       return res.status(401).json({
         success: false,
@@ -221,15 +248,28 @@ export const getProfile = asyncHandler(async (req, res) => {
 export const updateProfile = asyncHandler(async (req, res) => {
   const { name, phoneNumbers, preferences } = req.body;
 
-  const user = await Attendee.findByIdAndUpdate(
-    req.user._id,
-    {
-      name: name || req.user.name,
-      phoneNumbers: phoneNumbers || req.user.phoneNumbers,
-      preferences: preferences || req.user.preferences
-    },
-    { new: true, runValidators: true }
-  );
+  let user;
+  if (req.user.role === 'organizer') {
+    user = await Organizer.findByIdAndUpdate(
+      req.user._id,
+      {
+        name: name || req.user.name,
+        phoneNumbers: phoneNumbers || req.user.phoneNumbers,
+        preferences: preferences || req.user.preferences
+      },
+      { new: true, runValidators: true }
+    );
+  } else {
+    user = await Attendee.findByIdAndUpdate(
+      req.user._id,
+      {
+        name: name || req.user.name,
+        phoneNumbers: phoneNumbers || req.user.phoneNumbers,
+        preferences: preferences || req.user.preferences
+      },
+      { new: true, runValidators: true }
+    );
+  }
 
   res.json({
     success: true,
@@ -246,8 +286,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
 export const changePassword = asyncHandler(async (req, res) => {
   const { currentPassword, newPassword } = req.body;
 
-  // Get user with password
-  const user = await Attendee.findById(req.user._id).select('+password');
+  let user;
+  if (req.user.role === 'organizer') {
+    user = await Organizer.findById(req.user._id).select('+password');
+  } else {
+    user = await Attendee.findById(req.user._id).select('+password');
+  }
+
   if (!user) {
     return res.status(404).json({
       success: false,

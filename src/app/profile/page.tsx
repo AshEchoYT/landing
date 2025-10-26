@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { User, Mail, Phone, Bell, BellOff, Edit3, Save, X, Calendar, Ticket, DollarSign } from 'lucide-react';
+import Link from 'next/link';
+import { User, Mail, Phone, Bell, BellOff, Edit3, Save, X, Calendar, Ticket, DollarSign, Camera, Upload } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/Loader';
 import Navbar from '../../components/Navbar';
@@ -16,6 +17,11 @@ const ProfilePage = () => {
   const [error, setError] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState<UpdateAttendeeProfileData>({});
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const availableCategories = ['concert', 'festival', 'theater', 'art', 'sports', 'conference'];
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -29,7 +35,8 @@ const ProfilePage = () => {
           setEditForm({
             name: response.data.attendee.name,
             phoneNumbers: response.data.attendee.phoneNumbers || [],
-            preferences: response.data.attendee.preferences
+            preferences: response.data.attendee.preferences,
+            profilePicture: response.data.attendee.profilePicture
           });
         } else {
           setError('Failed to load profile');
@@ -116,6 +123,76 @@ const ProfilePage = () => {
         }
       }
     }));
+  };
+
+  const toggleCategory = (category: string) => {
+    setEditForm(prev => {
+      const currentCategories = prev.preferences?.categories || [];
+      const newCategories = currentCategories.includes(category)
+        ? currentCategories.filter(c => c !== category)
+        : [...currentCategories, category];
+
+      return {
+        ...prev,
+        preferences: {
+          notifications: prev.preferences?.notifications || { email: false, sms: false },
+          categories: newCategories
+        }
+      };
+    });
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewUrl(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleProfilePictureUpload = async () => {
+    if (!selectedFile) return;
+
+    try {
+      setUpdating(true);
+      setError(null);
+
+      // Convert file to base64 for demo purposes
+      // In production, you'd upload to cloud storage
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const base64String = e.target?.result as string;
+
+        const response = await attendeeApi.updateProfile({
+          ...editForm,
+          profilePicture: base64String
+        });
+
+        if (response.success) {
+          setProfile(response.data.attendee);
+          setSelectedFile(null);
+          setPreviewUrl(null);
+        } else {
+          setError('Failed to update profile picture');
+        }
+        setUpdating(false);
+      };
+
+      reader.onerror = () => {
+        setError('Failed to read file');
+        setUpdating(false);
+      };
+
+      reader.readAsDataURL(selectedFile);
+    } catch (error) {
+      console.error('Error uploading profile picture:', error);
+      setError('Failed to upload profile picture');
+      setUpdating(false);
+    }
   };
 
   if (loading) {
@@ -299,6 +376,77 @@ const ProfilePage = () => {
               </div>
             </motion.div>
 
+            {/* Profile Picture */}
+            <motion.div
+              className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+            >
+              <h2 className="text-2xl font-bold text-white mb-6">Profile Picture</h2>
+              <div className="flex items-center space-x-6">
+                <div className="relative">
+                  <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-cyan-500 rounded-full flex items-center justify-center overflow-hidden">
+                    {previewUrl || profile?.profilePicture ? (
+                      <img
+                        src={previewUrl || profile.profilePicture}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-12 h-12 text-black" />
+                    )}
+                  </div>
+                  {isEditing && (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="absolute -bottom-2 -right-2 w-8 h-8 bg-green-500 rounded-full flex items-center justify-center hover:bg-green-400 transition-colors"
+                    >
+                      <Camera className="w-4 h-4 text-black" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-white mb-2">Update Profile Picture</h3>
+                  <p className="text-gray-400 text-sm mb-4">
+                    Upload a new profile picture. Recommended size: 400x400px
+                  </p>
+                  {isEditing && (
+                    <div className="flex space-x-3">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                      />
+                      <button
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex items-center space-x-2 px-4 py-2 bg-gray-700/50 text-white rounded-lg hover:bg-gray-600/50 transition-colors"
+                      >
+                        <Upload className="w-4 h-4" />
+                        <span>Choose File</span>
+                      </button>
+                      {selectedFile && (
+                        <button
+                          onClick={handleProfilePictureUpload}
+                          className="flex items-center space-x-2 px-4 py-2 bg-green-500/20 text-green-400 rounded-lg hover:bg-green-500/30 transition-colors"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>Upload</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {selectedFile && (
+                    <p className="text-sm text-green-400 mt-2">
+                      Selected: {selectedFile.name}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+
             {/* Notification Preferences */}
             <motion.div
               className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50"
@@ -381,6 +529,41 @@ const ProfilePage = () => {
                 </div>
               </div>
             </motion.div>
+
+            {/* Event Category Preferences */}
+            <motion.div
+              className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+            >
+              <h2 className="text-2xl font-bold text-white mb-6">Event Preferences</h2>
+              <p className="text-gray-400 mb-4">
+                Select the types of events you're interested in to get personalized recommendations
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {availableCategories.map((category, index) => (
+                  <motion.div
+                    key={category}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <button
+                      onClick={() => isEditing && toggleCategory(category)}
+                      className={`w-full p-3 rounded-lg border transition-all duration-300 ${
+                        (isEditing ? editForm.preferences?.categories : profile?.preferences.categories)?.includes(category)
+                          ? 'bg-green-500/20 border-green-500/50 text-green-400'
+                          : 'bg-gray-700/30 border-gray-600/50 text-gray-400 hover:bg-gray-600/30'
+                      } ${!isEditing ? 'cursor-default' : 'cursor-pointer hover:scale-105'}`}
+                      disabled={!isEditing}
+                    >
+                      <span className="capitalize font-medium">{category}</span>
+                    </button>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
           </div>
 
           {/* Sidebar */}
@@ -422,18 +605,24 @@ const ProfilePage = () => {
             >
               <h3 className="text-xl font-bold text-white mb-4">Quick Actions</h3>
               <div className="space-y-3">
-                <button className="w-full flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-600/30 transition-colors text-left">
-                  <Ticket className="w-5 h-5 text-green-400" />
-                  <span className="text-white">View My Tickets</span>
-                </button>
-                <button className="w-full flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-600/30 transition-colors text-left">
-                  <Calendar className="w-5 h-5 text-green-400" />
-                  <span className="text-white">My Events</span>
-                </button>
-                <button className="w-full flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-600/30 transition-colors text-left">
-                  <DollarSign className="w-5 h-5 text-green-400" />
-                  <span className="text-white">Payment History</span>
-                </button>
+                <Link href="/tickets">
+                  <button className="w-full flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-600/30 transition-colors text-left">
+                    <Ticket className="w-5 h-5 text-green-400" />
+                    <span className="text-white">View My Tickets</span>
+                  </button>
+                </Link>
+                <Link href="/dashboard">
+                  <button className="w-full flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-600/30 transition-colors text-left">
+                    <Calendar className="w-5 h-5 text-green-400" />
+                    <span className="text-white">My Events</span>
+                  </button>
+                </Link>
+                <Link href="/payments">
+                  <button className="w-full flex items-center space-x-3 p-3 bg-gray-700/30 rounded-lg hover:bg-gray-600/30 transition-colors text-left">
+                    <DollarSign className="w-5 h-5 text-green-400" />
+                    <span className="text-white">Payment History</span>
+                  </button>
+                </Link>
               </div>
             </motion.div>
           </div>

@@ -52,6 +52,16 @@ const eventSchema = new mongoose.Schema({
     min: [0, 'Budget cannot be negative'],
     default: 0
   },
+  staffCount: {
+    type: Number,
+    min: [0, 'Staff count cannot be negative'],
+    default: 0
+  },
+  sponsor: {
+    type: String,
+    trim: true,
+    maxlength: [100, 'Sponsor name cannot exceed 100 characters']
+  },
   tags: [{
     type: String,
     trim: true,

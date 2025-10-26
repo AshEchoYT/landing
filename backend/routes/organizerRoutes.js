@@ -22,7 +22,7 @@ const router = express.Router();
 
 // All organizer routes require authentication and organizer role
 router.use(authenticateToken);
-router.use(requireRole(['organizer', 'admin']));
+router.use(requireRole('organizer', 'admin'));
 
 // @route   GET /api/v1/organizer/dashboard
 // @desc    Get organizer dashboard data
@@ -132,11 +132,13 @@ router.put(
   '/profile',
   [
     body('name').optional().notEmpty().withMessage('Name cannot be empty'),
-    body('email').optional().isEmail().withMessage('Please provide a valid email'),
-    body('company').optional().notEmpty().withMessage('Company cannot be empty'),
-    body('phone').optional().isMobilePhone().withMessage('Please provide a valid phone number'),
-    body('bio').optional().isLength({ max: 500 }).withMessage('Bio cannot exceed 500 characters'),
-    body('socialLinks').optional().isObject().withMessage('Social links must be an object')
+    body('phoneNumbers').optional().isArray().withMessage('Phone numbers must be an array'),
+    body('companyName').optional().notEmpty().withMessage('Company name cannot be empty'),
+    body('website').optional().isURL().withMessage('Website must be a valid URL'),
+    body('description').optional().isLength({ max: 500 }).withMessage('Description cannot exceed 500 characters'),
+    body('address').optional().isObject().withMessage('Address must be an object'),
+    body('socialMedia').optional().isObject().withMessage('Social media must be an object'),
+    body('preferences').optional().isObject().withMessage('Preferences must be an object')
   ],
   updateOrganizerProfile
 );

@@ -1,6 +1,47 @@
 import { apiClient } from '../lib/apiClient';
 import { API_ENDPOINTS } from '../lib/config';
 
+export interface OrganizerPreferences {
+  notifications: {
+    email: boolean;
+    sms: boolean;
+    push: boolean;
+  };
+  theme: 'light' | 'dark';
+  language: string;
+}
+
+export interface Organizer {
+  _id: string;
+  name: string;
+  email: string;
+  phoneNumbers?: string[];
+  role: 'organizer';
+  companyName?: string;
+  website?: string;
+  description?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  socialMedia?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+  };
+  isVerified: boolean;
+  totalEvents: number;
+  rating: number;
+  isActive: boolean;
+  preferences: OrganizerPreferences;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface OrganizerDashboard {
   metrics: {
     totalEvents: number;
@@ -26,20 +67,47 @@ export interface Sponsor {
   _id: string;
   name: string;
   email: string;
-  company: string;
-  sponsorshipLevel: string;
-  amount: number;
-  benefits: string[];
+  companyName?: string;
+  company?: string; // For backward compatibility
+  sponsorshipType?: string;
+  sponsorshipLevel?: string; // For backward compatibility
+  contributionAmount?: number;
+  amount?: number; // For backward compatibility
+  perks?: string[];
+  benefits?: string[]; // For backward compatibility
+  contactPerson?: string;
+  contactNo?: string;
+  isActive?: boolean;
 }
 
-export interface Vendor {
-  _id: string;
-  name: string;
-  email: string;
-  company: string;
-  serviceType: string;
-  boothNumber?: string;
-  contractValue: number;
+export interface UpdateOrganizerProfileData {
+  name?: string;
+  phoneNumbers?: string[];
+  companyName?: string;
+  website?: string;
+  description?: string;
+  address?: {
+    street?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
+  socialMedia?: {
+    facebook?: string;
+    twitter?: string;
+    instagram?: string;
+    linkedin?: string;
+  };
+  preferences?: {
+    notifications?: {
+      email?: boolean;
+      sms?: boolean;
+      push?: boolean;
+    };
+    theme?: 'light' | 'dark';
+    language?: string;
+  };
 }
 
 export const organizerApi = {
@@ -110,12 +178,12 @@ export const organizerApi = {
   },
 
   // Profile Management
-  getProfile: async (): Promise<{ success: boolean; data: { organizer: any } }> => {
+  getProfile: async (): Promise<{ success: boolean; data: { organizer: Organizer } }> => {
     const response = await apiClient.get(API_ENDPOINTS.ORGANIZER.PROFILE);
     return response.data;
   },
 
-  updateProfile: async (profileData: any): Promise<{ success: boolean; message: string; data: { organizer: any } }> => {
+  updateProfile: async (profileData: UpdateOrganizerProfileData): Promise<{ success: boolean; message: string; data: { organizer: Organizer } }> => {
     const response = await apiClient.put(API_ENDPOINTS.ORGANIZER.PROFILE, profileData);
     return response.data;
   },

@@ -90,10 +90,13 @@ attendeeSchema.methods.getPublicProfile = function() {
     _id: this._id,
     name: this.name,
     email: this.email,
+    phoneNumbers: this.phoneNumbers,
     role: this.role,
+    isActive: this.isActive,
     profilePicture: this.profilePicture,
     preferences: this.preferences,
-    createdAt: this.createdAt
+    createdAt: this.createdAt,
+    updatedAt: this.updatedAt
   };
 };
 
